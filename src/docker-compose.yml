@@ -1,0 +1,269 @@
+services:
+  nextcloud:
+    build: .
+    container_name: nextcloud
+    env_file:
+      - envs/nextcloud.env
+      - envs/db.env
+      - envs/redis.env
+      - envs/oidc.env
+      - envs/ai.env
+      - envs/smtp.env
+      - envs/talk.env
+    volumes:
+      - nextcloud_data:/var/www/html/data
+      - nextcloud_html:/var/www/html
+      - scripts:/scripts
+    networks:
+      - nextcloud_internal
+    healthcheck:
+      test: [ "CMD-SHELL", "/scripts/healthcheck.sh" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      coturn:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nextcloud_cron:
+    build: .
+    container_name: nextcloud_cron
+    entrypoint: [ "/cron.sh" ]
+    env_file:
+      - envs/nextcloud.env
+      - envs/db.env
+      - envs/redis.env
+      - envs/oidc.env
+      - envs/ai.env
+      - envs/smtp.env
+    volumes:
+      - nextcloud_data:/var/www/html/data
+      - nextcloud_html:/var/www/html
+    networks:
+      - nextcloud_internal
+    depends_on:
+      nextcloud:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nextcloud_maintenance_worker:
+    build: .
+    container_name: nextcloud_maintenance_worker
+    entrypoint: [ "/scripts/maintenance-worker.sh" ]
+    env_file:
+      - envs/nextcloud.env
+      - envs/db.env
+      - envs/redis.env
+      - envs/oidc.env
+      - envs/ai.env
+      - envs/smtp.env
+    volumes:
+      - nextcloud_data:/var/www/html/data
+      - nextcloud_html:/var/www/html
+      - scripts:/scripts
+    networks:
+      - nextcloud_internal
+    depends_on:
+      nextcloud:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres_db:
+    image: postgres:${POSTGRES_VERSION:-16-alpine}
+    container_name: nextcloud_postgres
+    shm_size: 256mb
+    env_file:
+      - envs/db.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nextcloud_internal
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  redis:
+    image: redis:${REDIS_VERSION:-7-alpine}
+    container_name: nextcloud_redis
+    env_file:
+      - envs/redis.env
+    command: /bin/sh -c 'exec redis-server --requirepass "$$REDIS_PASSWORD"'
+    volumes:
+      - redis_data:/data
+    networks:
+      - nextcloud_internal
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  clamav:
+    image: clamav/clamav:1.4-alpine
+    container_name: nextcloud_clamav
+    environment:
+      - CLAMAV_NO_FRESHCLAM=false
+    volumes:
+      - clamav_db:/var/lib/clamav
+    networks:
+      - nextcloud_internal
+    healthcheck:
+      test: [ "CMD-SHELL", "clamdscan /dev/null || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: nextcloud_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - nextcloud_internal
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status' || exit 1" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    container_name: nextcloud_coturn
+    env_file:
+      - envs/talk.env
+    command:
+      - -n
+      - --log-file=stdout
+      - --listening-port=3478
+      - --min-port=49152
+      - --max-port=49172
+      - --realm=nextcloud.xbhl.online
+      - --use-auth-secret
+      - --static-auth-secret=$${COTURN_SECRET}
+      - --fingerprint
+      - --lt-cred-mech
+      - --stale-nonce=600
+      - --no-multicast-peers
+      - --no-cli
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "49152-49172:49152-49172/udp"
+    networks:
+      - nextcloud_internal
+    healthcheck:
+      test: [ "CMD-SHELL", "turnutils_stunclient 127.0.0.1 3478 || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  borgmatic:
+    image: b3vis/borgmatic:1.8.14
+    container_name: nextcloud_borgmatic
+    entrypoint: [ "/scripts/borgmatic-entrypoint.sh" ]
+    env_file:
+      - envs/backup.env
+      - envs/db.env
+    volumes:
+      - nextcloud_data:/var/www/html/data:ro
+      - nextcloud_html:/var/www/html:ro
+      - scripts:/scripts:ro
+      - ./backup-config:/etc/borgmatic.d
+      - borg_cache:/root/.cache/borg
+      - borg_config:/root/.config/borg
+      - backup_storage:/mnt/backup
+    networks:
+      - nextcloud_internal
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.7.3
+    container_name: nextcloud_cloudflared
+    profiles: [ "production" ]
+    command: tunnel run
+    environment:
+      - NO_AUTOUPDATE=true
+    volumes:
+      - ./cloudflared-config:/etc/cloudflared
+    networks:
+      - nextcloud_internal
+    depends_on:
+      nextcloud:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  nextcloud_html:
+    driver: local
+
+  postgres_data:
+    driver: local
+
+  redis_data:
+    driver: local
+
+  clamav_db:
+    driver: local
+
+  elasticsearch_data:
+    driver: local
+
+  borg_cache:
+    driver: local
+
+  borg_config:
+    driver: local
+
+  scripts:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "./scripts"
+
+  nextcloud_data:
+    driver: local
+    driver_opts:
+      type: "${NEXTCLOUD_STORAGE_DRIVER_TYPE:-nfs}"
+      o: "${NEXTCLOUD_STORAGE_DRIVER_OPTS:-addr=nas.srv.xbhl.intranet,rw,soft,timeo=100,nolock}"
+      device: "${NEXTCLOUD_STORAGE_DEVICE:-:/share/NFSv=4/RemoteStorage/nextcloud}"
+
+  backup_storage:
+    driver: local
+    driver_opts:
+      type: "${NEXTCLOUD_BACKUP_STORAGE_DRIVER_TYPE:-nfs}"
+      o: "${NEXTCLOUD_BACKUP_STORAGE_DRIVER_OPTS:-addr=nas.srv.xbhl.intranet,rw,soft,timeo=100,nolock}"
+      device: "${NEXTCLOUD_BACKUP_STORAGE_DEVICE:-:/share/NFSv=4/Backup/nextcloud}"
+
+networks:
+  nextcloud_internal:
+    name: nextcloud_internal_network
