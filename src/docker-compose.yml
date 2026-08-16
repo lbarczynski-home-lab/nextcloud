@@ -101,13 +101,13 @@ services:
     container_name: nextcloud_redis
     env_file:
       - envs/redis.env
-    command: /bin/sh -c 'exec redis-server --requirepass "$$REDIS_PASSWORD"'
+    command: /bin/sh -c 'exec redis-server --requirepass "$$REDIS_HOST_PASSWORD"'
     volumes:
       - redis_data:/data
     networks:
       - nextcloud_internal
     healthcheck:
-      test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG || exit 1" ]
+      test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_HOST_PASSWORD\" ping | grep PONG || exit 1" ]
       interval: 5s
       timeout: 5s
       retries: 10
