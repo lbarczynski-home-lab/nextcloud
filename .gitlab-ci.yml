@@ -29,21 +29,21 @@ test:nextcloud:docker-compose:
 
 setup:generate-build-artifacts:
   script:
-    - apk add --no-cache bash jq
-    - cp -r src/envs $BUILD_ARTIFACTS_DIR/
-    - cp -r src/cloudflared-config $BUILD_ARTIFACTS_DIR/
-    - ./scripts/generate-cloudflare-tunnel-credentials.sh -t "$CLOUDFLARE_TUNNEL_TOKEN" -o $BUILD_ARTIFACTS_DIR/cloudflared-config/credentials.json
-    - sed -i "s|^tunnel:.*|tunnel: ${CLOUDFLARE_TUNNEL_UUID}|" $BUILD_ARTIFACTS_DIR/cloudflared-config/config.yml
-    - if [ -n "$NEXTCLOUD_MAIN_USER" ]; then sed -i "s|^NEXTCLOUD_MAIN_USER=.*|NEXTCLOUD_MAIN_USER=${NEXTCLOUD_MAIN_USER}|" $BUILD_ARTIFACTS_DIR/envs/nextcloud.env; fi
-    - sed -i "s|^NEXTCLOUD_ADMIN_PASSWORD=.*|NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/nextcloud.env
-    - sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/db.env
-    - sed -i "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=${NEXTCLOUD_REDIS_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/redis.env
-    - sed -i "s|^OIDC_CLIENT_SECRET=.*|OIDC_CLIENT_SECRET=${NEXTCLOUD_OAUTH_CLIENT_SECRET}|" $BUILD_ARTIFACTS_DIR/envs/oidc.env
-    - sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${OPEN_WEBUI_API_KEY}|" $BUILD_ARTIFACTS_DIR/envs/ai.env
-    - sed -i "s|^BORG_PASSPHRASE=.*|BORG_PASSPHRASE=${NEXTCLOUD_BORG_PASSPHRASE}|" $BUILD_ARTIFACTS_DIR/envs/backup.env
-    - sed -i "s|^SMTP_HOST=.*|SMTP_HOST=${SMTP_HOST}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env
-    - sed -i "s|^SMTP_PORT=.*|SMTP_PORT=${SMTP_PORT}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env
-    - sed -i "s|^SMTP_USERNAME=.*|SMTP_USERNAME=${SMTP_USERNAME}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env
-    - sed -i "s|^SMTP_PASSWORD=.*|SMTP_PASSWORD=${SMTP_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env
-    - sed -i "s|^SMTP_FROM=.*|SMTP_FROM=${SMTP_FROM}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env
-    - sed -i "s|^COTURN_SECRET=.*|COTURN_SECRET=${NEXTCLOUD_COTURN_SECRET}|" $BUILD_ARTIFACTS_DIR/envs/talk.env
+    - 'apk add --no-cache bash jq'
+    - 'cp -r src/envs $BUILD_ARTIFACTS_DIR/'
+    - 'cp -r src/cloudflared-config $BUILD_ARTIFACTS_DIR/'
+    - './scripts/generate-cloudflare-tunnel-credentials.sh -t "$CLOUDFLARE_TUNNEL_TOKEN" -o $BUILD_ARTIFACTS_DIR/cloudflared-config/credentials.json'
+    - 'sed -i "s|^tunnel:.*|tunnel: ${CLOUDFLARE_TUNNEL_UUID}|" $BUILD_ARTIFACTS_DIR/cloudflared-config/config.yml'
+    - 'sed -i "s|^NEXTCLOUD_MAIN_USER=.*|NEXTCLOUD_MAIN_USER=${NEXTCLOUD_MAIN_USER:-lbarczynski}|" $BUILD_ARTIFACTS_DIR/envs/nextcloud.env'
+    - 'sed -i "s|^NEXTCLOUD_ADMIN_PASSWORD=.*|NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/nextcloud.env'
+    - 'sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/db.env'
+    - 'sed -i "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=${NEXTCLOUD_REDIS_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/redis.env'
+    - 'sed -i "s|^OIDC_CLIENT_SECRET=.*|OIDC_CLIENT_SECRET=${NEXTCLOUD_OAUTH_CLIENT_SECRET}|" $BUILD_ARTIFACTS_DIR/envs/oidc.env'
+    - 'sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${OPEN_WEBUI_API_KEY}|" $BUILD_ARTIFACTS_DIR/envs/ai.env'
+    - 'sed -i "s|^BORG_PASSPHRASE=.*|BORG_PASSPHRASE=${NEXTCLOUD_BORG_PASSPHRASE}|" $BUILD_ARTIFACTS_DIR/envs/backup.env'
+    - 'sed -i "s|^SMTP_HOST=.*|SMTP_HOST=${SMTP_HOST}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
+    - 'sed -i "s|^SMTP_PORT=.*|SMTP_PORT=${SMTP_PORT}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
+    - 'sed -i "s|^SMTP_USERNAME=.*|SMTP_USERNAME=${SMTP_USERNAME}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
+    - 'sed -i "s|^SMTP_PASSWORD=.*|SMTP_PASSWORD=${SMTP_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
+    - 'sed -i "s|^SMTP_FROM=.*|SMTP_FROM=${SMTP_FROM}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
+    - 'sed -i "s|^COTURN_SECRET=.*|COTURN_SECRET=${NEXTCLOUD_COTURN_SECRET}|" $BUILD_ARTIFACTS_DIR/envs/talk.env'
