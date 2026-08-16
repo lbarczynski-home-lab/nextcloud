@@ -36,6 +36,9 @@ validate_environment() {
         SMTP_FROM
         COTURN_SECRET
         COTURN_HOST
+        LDAP_HOST
+        LDAP_AGENT_DN
+        LDAP_AGENT_PASSWORD
     )
 
     local missing_vars=()
@@ -151,6 +154,7 @@ install_applications() {
     log_info "Installing and enabling required applications..."
 
     local apps=(
+        user_ldap
         user_oidc
         previewgenerator
         memories
@@ -174,6 +178,38 @@ install_applications() {
     done
 
     occ_cmd app:disable registration --no-interaction 2>/dev/null || true
+}
+
+configure_ldap() {
+    log_info "Configuring direct LDAP backend (${LDAP_HOST})..."
+
+    occ_cmd app:enable user_ldap --no-interaction 2>/dev/null || true
+
+    local config_id="s01"
+    if ! occ_cmd ldap:show-config "$config_id" >/dev/null 2>&1; then
+        occ_cmd ldap:create-empty-config --no-interaction 2>/dev/null || true
+    fi
+
+    occ_cmd ldap:set-config "$config_id" ldapHost "$LDAP_HOST"
+    occ_cmd ldap:set-config "$config_id" ldapPort "${LDAP_PORT:-389}"
+    occ_cmd ldap:set-config "$config_id" ldapBase "$LDAP_BASE"
+    occ_cmd ldap:set-config "$config_id" ldapBaseUsers "${LDAP_USER_BASE:-ou=people,$LDAP_BASE}"
+    occ_cmd ldap:set-config "$config_id" ldapBaseGroups "${LDAP_GROUP_BASE:-ou=group,$LDAP_BASE}"
+    occ_cmd ldap:set-config "$config_id" ldapAgentName "$LDAP_AGENT_DN"
+    occ_cmd ldap:set-config "$config_id" ldapAgentPassword "$LDAP_AGENT_PASSWORD"
+    occ_cmd ldap:set-config "$config_id" ldapUserFilterObjectclass "inetOrgPerson"
+    occ_cmd ldap:set-config "$config_id" ldapUserFilter "(|(objectclass=inetOrgPerson))"
+    occ_cmd ldap:set-config "$config_id" ldapLoginFilter "(&(|(objectclass=inetOrgPerson))(uid=%uid))"
+    occ_cmd ldap:set-config "$config_id" ldapUserDisplayName "description"
+    occ_cmd ldap:set-config "$config_id" ldapEmailAttribute "mail"
+    occ_cmd ldap:set-config "$config_id" ldapGroupFilterObjectclass "posixGroup"
+    occ_cmd ldap:set-config "$config_id" ldapGroupFilter "(|(objectclass=posixGroup))"
+    occ_cmd ldap:set-config "$config_id" ldapGroupDisplayName "cn"
+    occ_cmd ldap:set-config "$config_id" ldapTLS "0"
+    occ_cmd ldap:set-config "$config_id" turnOffCertCheck "1"
+    occ_cmd ldap:set-config "$config_id" ldapExpertUsernameAttr "uid"
+    occ_cmd ldap:set-config "$config_id" ldapExpertUUIDUserAttr "uid"
+    occ_cmd ldap:set-config "$config_id" ldapConfigurationActive "1"
 }
 
 configure_oidc() {
@@ -296,6 +332,7 @@ main() {
 
     install_applications
 
+    configure_ldap
     configure_oidc
     configure_antivirus
     configure_fulltextsearch
