@@ -7,7 +7,7 @@ Nextcloud enterprise-grade private cloud storage setup with PostgreSQL, Redis ca
 - **Nextcloud**: Apache image with multimedia support (`ffmpeg`, `imagemagick`, `ghostscript`, and `exiftool`).
 - **Database**: PostgreSQL on local VM storage.
 - **Cache & Locking**: Redis.
-- **Storage**: QNAP NAS NFS mount for data directory (`/var/www/html/data`).
+- **Storage**: QNAP NAS NFS mount for data directory (`/var/nc-data`).
 - **Access**: Cloudflare Tunnel (`nextcloud.xbhl.online`).
 - **SSO**: Authelia OIDC integration (`user_oidc`).
 - **Communication & Calls**: Nextcloud Talk (`spreed`) with dedicated Coturn STUN/TURN server (`nextcloud_coturn` at `talk.nextcloud.xbhl.online`).

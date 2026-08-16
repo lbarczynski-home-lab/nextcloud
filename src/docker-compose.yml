@@ -11,7 +11,7 @@ services:
       - envs/smtp.env
       - envs/talk.env
     volumes:
-      - nextcloud_data:/var/www/html/data:nocopy
+      - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
       - scripts:/scripts
     networks:
@@ -47,7 +47,7 @@ services:
       - envs/ai.env
       - envs/smtp.env
     volumes:
-      - nextcloud_data:/var/www/html/data:nocopy
+      - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
     networks:
       - nextcloud_internal
@@ -68,7 +68,7 @@ services:
       - envs/ai.env
       - envs/smtp.env
     volumes:
-      - nextcloud_data:/var/www/html/data:nocopy
+      - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
       - scripts:/scripts
     networks:
