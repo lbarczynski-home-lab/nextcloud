@@ -2,7 +2,7 @@
 set -e
 
 STATUS_URL="http://localhost:80/status.php"
-DATA_DIR="${NEXTCLOUD_DATA_DIR:-/var/nc-data}"
+DATA_DIR="${NEXTCLOUD_DATA_DIR:-/var/www/html/data}"
 TEST_FILE="$DATA_DIR/.healthcheck.tmp"
 
 STATUS_OUTPUT=$(curl -s -f "$STATUS_URL" 2>/dev/null) || {
