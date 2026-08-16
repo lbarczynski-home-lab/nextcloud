@@ -23,7 +23,7 @@ validate_environment() {
         NEXTCLOUD_MAIN_USER
         REDIS_HOST
         REDIS_HOST_PORT
-        REDIS_PASSWORD
+        REDIS_HOST_PASSWORD
         OIDC_CLIENT_ID
         OIDC_CLIENT_SECRET
         OIDC_PROVIDER_URL
@@ -105,7 +105,8 @@ configure_caching() {
 
     occ_cmd config:system:set redis host --value="$REDIS_HOST"
     occ_cmd config:system:set redis port --type=integer --value="$REDIS_HOST_PORT"
-    occ_cmd config:system:set redis password --value="$REDIS_PASSWORD"
+    occ_cmd config:system:set redis password --value="$REDIS_HOST_PASSWORD"
+    occ_cmd config:system:set redis timeout --type=float --value=1.5
 }
 
 configure_previews() {
