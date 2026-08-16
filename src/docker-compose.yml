@@ -85,15 +85,15 @@ services:
     env_file:
       - envs/db.env
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     networks:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} || exit 1" ]
       interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 5s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
 
   redis:
@@ -110,8 +110,8 @@ services:
       test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG || exit 1" ]
       interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 5s
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   clamav:
@@ -124,11 +124,11 @@ services:
     networks:
       - nextcloud_internal
     healthcheck:
-      test: [ "CMD-SHELL", "clamdscan /dev/null || exit 1" ]
-      interval: 30s
+      test: [ "CMD-SHELL", "nc -z 127.0.0.1 3310 || exit 1" ]
+      interval: 10s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 20
+      start_period: 300s
     restart: unless-stopped
 
   elasticsearch:
@@ -146,8 +146,8 @@ services:
       test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status' || exit 1" ]
       interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 45s
     restart: unless-stopped
 
   coturn:
@@ -155,20 +155,8 @@ services:
     container_name: nextcloud_coturn
     env_file:
       - envs/talk.env
-    command:
-      - -n
-      - --log-file=stdout
-      - --listening-port=3478
-      - --min-port=49152
-      - --max-port=49172
-      - --realm=$${COTURN_REALM}
-      - --use-auth-secret
-      - --static-auth-secret=$${COTURN_SECRET}
-      - --fingerprint
-      - --lt-cred-mech
-      - --stale-nonce=600
-      - --no-multicast-peers
-      - --no-cli
+    command: >
+      /bin/sh -c 'exec turnserver -n --log-file=stdout --listening-port=3478 --min-port=49152 --max-port=49172 --realm="$$COTURN_REALM" --use-auth-secret --static-auth-secret="$$COTURN_SECRET" --fingerprint --lt-cred-mech --stale-nonce=600 --no-multicast-peers'
     ports:
       - "3478:3478/tcp"
       - "3478:3478/udp"
@@ -177,32 +165,10 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "turnutils_stunclient 127.0.0.1 3478 || exit 1" ]
-      interval: 30s
+      interval: 15s
       timeout: 10s
-      retries: 3
-      start_period: 10s
-    restart: unless-stopped
-
-  borgmatic:
-    image: b3vis/borgmatic:2.1.6
-    container_name: nextcloud_borgmatic
-    entrypoint: [ "/scripts/borgmatic-entrypoint.sh" ]
-    env_file:
-      - envs/backup.env
-      - envs/db.env
-    volumes:
-      - nextcloud_data:/var/www/html/data:ro
-      - nextcloud_html:/var/www/html:ro
-      - scripts:/scripts:ro
-      - ./backup-config:/etc/borgmatic.d
-      - borg_cache:/root/.cache/borg
-      - borg_config:/root/.config/borg
-      - backup_storage:/mnt/backup
-    networks:
-      - nextcloud_internal
-    depends_on:
-      postgres_db:
-        condition: service_healthy
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
 
   cloudflared:
@@ -237,12 +203,6 @@ volumes:
   elasticsearch_data:
     driver: local
 
-  borg_cache:
-    driver: local
-
-  borg_config:
-    driver: local
-
   scripts:
     driver: local
     driver_opts:
@@ -256,13 +216,6 @@ volumes:
       type: "${NEXTCLOUD_STORAGE_DRIVER_TYPE:-nfs}"
       o: "${NEXTCLOUD_STORAGE_DRIVER_OPTS:-addr=nas.srv.xbhl.intranet,rw,soft,timeo=100,nolock}"
       device: "${NEXTCLOUD_STORAGE_DEVICE:-:/share/NFSv=4/RemoteStorage/NextCloud}"
-
-  backup_storage:
-    driver: local
-    driver_opts:
-      type: "${NEXTCLOUD_BACKUP_STORAGE_DRIVER_TYPE:-nfs}"
-      o: "${NEXTCLOUD_BACKUP_STORAGE_DRIVER_OPTS:-addr=nas.srv.xbhl.intranet,rw,soft,timeo=100,nolock}"
-      device: "${NEXTCLOUD_BACKUP_STORAGE_DEVICE:-:/share/NFSv=4/Backup/NextCloud}"
 
 networks:
   nextcloud_internal:

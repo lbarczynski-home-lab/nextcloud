@@ -12,20 +12,17 @@ include:
       cloudflare-tunnel-uuid: $CLOUDFLARE_TUNNEL_UUID
       cloudflare-zone-id: $CLOUDFLARE_ZONE_ID
       cloudflare-dns-api-token: $CLOUDFLARE_DNS_API_TOKEN
-      container-healthcheck-delay: 120
+      container-healthcheck-delay: 360
       delete-existing-container-files: true
 
 test:nextcloud:docker-compose:
   before_script:
-    - docker run --rm -v /tmp:/mnt alpine rm -rf /mnt/nextcloud-test-data /mnt/nextcloud-test-backup
-    - docker run --rm -v /tmp/nextcloud-test-data:/tmp/nextcloud-test-data -v /tmp/nextcloud-test-backup:/tmp/nextcloud-test-backup alpine true
+    - docker run --rm -v /tmp:/mnt alpine rm -rf /mnt/nextcloud-test-data
+    - docker run --rm -v /tmp/nextcloud-test-data:/tmp/nextcloud-test-data alpine true
   variables:
     NEXTCLOUD_STORAGE_DRIVER_TYPE: "none"
     NEXTCLOUD_STORAGE_DRIVER_OPTS: "bind"
     NEXTCLOUD_STORAGE_DEVICE: "/tmp/nextcloud-test-data"
-    NEXTCLOUD_BACKUP_STORAGE_DRIVER_TYPE: "none"
-    NEXTCLOUD_BACKUP_STORAGE_DRIVER_OPTS: "bind"
-    NEXTCLOUD_BACKUP_STORAGE_DEVICE: "/tmp/nextcloud-test-backup"
 
 setup:generate-build-artifacts:
   script:
@@ -40,7 +37,6 @@ setup:generate-build-artifacts:
     - 'sed -i "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=${NEXTCLOUD_REDIS_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/redis.env'
     - 'sed -i "s|^OIDC_CLIENT_SECRET=.*|OIDC_CLIENT_SECRET=${NEXTCLOUD_OAUTH_CLIENT_SECRET}|" $BUILD_ARTIFACTS_DIR/envs/oidc.env'
     - 'sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${OPEN_WEBUI_API_KEY}|" $BUILD_ARTIFACTS_DIR/envs/ai.env'
-    - 'sed -i "s|^BORG_PASSPHRASE=.*|BORG_PASSPHRASE=${NEXTCLOUD_BORG_PASSPHRASE}|" $BUILD_ARTIFACTS_DIR/envs/backup.env'
     - 'sed -i "s|^SMTP_HOST=.*|SMTP_HOST=${SMTP_HOST}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
     - 'sed -i "s|^SMTP_PORT=.*|SMTP_PORT=${SMTP_PORT}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
     - 'sed -i "s|^SMTP_USERNAME=.*|SMTP_USERNAME=${SMTP_USERNAME}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
