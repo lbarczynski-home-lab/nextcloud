@@ -47,3 +47,22 @@ setup:generate-build-artifacts:
     - 'sed -i "s|^SMTP_PASSWORD=.*|SMTP_PASSWORD=${SMTP_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
     - 'sed -i "s|^SMTP_FROM=.*|SMTP_FROM=${SMTP_FROM}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
     - 'sed -i "s|^COTURN_SECRET=.*|COTURN_SECRET=${NEXTCLOUD_COTURN_SECRET}|" $BUILD_ARTIFACTS_DIR/envs/talk.env'
+
+deploy:nextcloud:update-coturn-dns:
+  stage: deploy
+  image: alpine:3.24.1
+  needs:
+    - "deploy:nextcloud:start-service"
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  variables:
+    DNS_RECORD_TYPE: "A"
+    DNS_TTL: 120
+    DNS_PROXIED: "false"
+    CLOUDFLARE_DNS_ENTRY_NAME: "talk.nextcloud.xbhl.online"
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - 'export DNS_CONTENT=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)'
+    - 'echo "Resolved public router IP for Coturn: $DNS_CONTENT"'
+    - !reference [.cloudflare-update-script, script]

@@ -79,7 +79,7 @@ services:
     restart: unless-stopped
 
   postgres_db:
-    image: postgres:${POSTGRES_VERSION:-16-alpine}
+    image: postgres:18.6
     container_name: nextcloud_postgres
     shm_size: 256mb
     env_file:
@@ -97,7 +97,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:${REDIS_VERSION:-7-alpine}
+    image: redis:8.10.0
     container_name: nextcloud_redis
     env_file:
       - envs/redis.env
@@ -115,7 +115,7 @@ services:
     restart: unless-stopped
 
   clamav:
-    image: clamav/clamav:1.4-alpine
+    image: clamav/clamav:1.5.4_base
     container_name: nextcloud_clamav
     environment:
       - CLAMAV_NO_FRESHCLAM=false
@@ -132,7 +132,7 @@ services:
     restart: unless-stopped
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.1
     container_name: nextcloud_elasticsearch
     environment:
       - discovery.type=single-node
@@ -151,7 +151,7 @@ services:
     restart: unless-stopped
 
   coturn:
-    image: coturn/coturn:4.6-alpine
+    image: coturn/coturn:4.17.2-alpine
     container_name: nextcloud_coturn
     env_file:
       - envs/talk.env
@@ -161,7 +161,7 @@ services:
       - --listening-port=3478
       - --min-port=49152
       - --max-port=49172
-      - --realm=nextcloud.xbhl.online
+      - --realm=$${COTURN_REALM}
       - --use-auth-secret
       - --static-auth-secret=$${COTURN_SECRET}
       - --fingerprint
@@ -184,7 +184,7 @@ services:
     restart: unless-stopped
 
   borgmatic:
-    image: b3vis/borgmatic:1.8.14
+    image: b3vis/borgmatic:2.1.6
     container_name: nextcloud_borgmatic
     entrypoint: [ "/scripts/borgmatic-entrypoint.sh" ]
     env_file:
@@ -206,7 +206,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.7.3
+    image: cloudflare/cloudflared:2026.8.2
     container_name: nextcloud_cloudflared
     profiles: [ "production" ]
     command: tunnel run
@@ -255,14 +255,14 @@ volumes:
     driver_opts:
       type: "${NEXTCLOUD_STORAGE_DRIVER_TYPE:-nfs}"
       o: "${NEXTCLOUD_STORAGE_DRIVER_OPTS:-addr=nas.srv.xbhl.intranet,rw,soft,timeo=100,nolock}"
-      device: "${NEXTCLOUD_STORAGE_DEVICE:-:/share/NFSv=4/RemoteStorage/nextcloud}"
+      device: "${NEXTCLOUD_STORAGE_DEVICE:-:/share/NFSv=4/RemoteStorage/NextCloud}"
 
   backup_storage:
     driver: local
     driver_opts:
       type: "${NEXTCLOUD_BACKUP_STORAGE_DRIVER_TYPE:-nfs}"
       o: "${NEXTCLOUD_BACKUP_STORAGE_DRIVER_OPTS:-addr=nas.srv.xbhl.intranet,rw,soft,timeo=100,nolock}"
-      device: "${NEXTCLOUD_BACKUP_STORAGE_DEVICE:-:/share/NFSv=4/Backup/nextcloud}"
+      device: "${NEXTCLOUD_BACKUP_STORAGE_DEVICE:-:/share/NFSv=4/Backup/NextCloud}"
 
 networks:
   nextcloud_internal:

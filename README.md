@@ -10,18 +10,20 @@ Nextcloud enterprise-grade private cloud storage setup with PostgreSQL, Redis ca
 - **Storage**: QNAP NAS NFS v4 mount for data directory (`/var/www/html/data`).
 - **Access**: Cloudflare Tunnel (`nextcloud.xbhl.online`).
 - **SSO**: Authelia OIDC integration (`user_oidc`).
-- **Communication & Calls**: Nextcloud Talk (`spreed`) with dedicated Coturn STUN/TURN server (`nextcloud_coturn`).
+- **Communication & Calls**: Nextcloud Talk (`spreed`) with dedicated Coturn STUN/TURN server (`nextcloud_coturn` at `talk.nextcloud.xbhl.online`).
 - **Security**: ClamAV daemon antivirus scanning on upload (`files_antivirus`).
 - **Search**: Elasticsearch 8 full-text search backend (`fulltextsearch_elasticsearch`) with automated background indexing.
 - **AI Assistant**: OpenWebUI integration via OpenAI-compatible API (`integration_openai`).
 - **Backups**: Borgmatic automated encrypted, deduplicated backups with auto-initialization to QNAP NAS (`/share/NFSv=4/Backup/nextcloud`).
 - **Background Tasks**: Dedicated `nextcloud_cron` container (every 5 min) and `nextcloud_maintenance_worker` (previews every 15 min + search sync hourly).
 
-## Coturn Network Ports
+## Coturn Network Ports & DNS
 
-To allow external WebRTC video/audio traffic through firewalls and NAT:
-- `3478` (TCP / UDP) - STUN/TURN service port
-- `49152-49172` (UDP) - Relay media port range
+Coturn requires direct (unproxied / non-Cloudflare Tunnel) routing to handle WebRTC UDP/TCP traffic:
+- **DNS Record**: `talk.nextcloud.xbhl.online` (A record pointing to Public Router IP, `proxied: false`, managed automatically by CI pipeline).
+- **Ports to Forward on Router to VM**:
+  - `3478` (TCP / UDP) - STUN/TURN service port
+  - `49152-49172` (UDP) - Relay media port range
 
 ## CI/CD Environment Variables Required
 

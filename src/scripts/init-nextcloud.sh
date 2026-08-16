@@ -35,6 +35,7 @@ validate_environment() {
         SMTP_PASSWORD
         SMTP_FROM
         COTURN_SECRET
+        COTURN_HOST
     )
 
     local missing_vars=()
@@ -212,10 +213,10 @@ configure_fulltextsearch() {
 }
 
 configure_talk() {
-    log_info "Configuring Nextcloud Talk STUN and Coturn TURN servers..."
+    log_info "Configuring Nextcloud Talk STUN and Coturn TURN servers (${COTURN_HOST})..."
 
-    occ_cmd config:app:set spreed stun_servers --value='["'"$OVERWRITEHOST"':3478","stun.nextcloud.com:443"]'
-    occ_cmd config:app:set spreed turn_servers --value='[{"server":"'"$OVERWRITEHOST"':3478","secret":"'"$COTURN_SECRET"'","protocols":"udp,tcp"}]'
+    occ_cmd config:app:set spreed stun_servers --value='["'"$COTURN_HOST"':3478","stun.nextcloud.com:443"]'
+    occ_cmd config:app:set spreed turn_servers --value='[{"server":"'"$COTURN_HOST"':3478","secret":"'"$COTURN_SECRET"'","protocols":"udp,tcp"}]'
 }
 
 configure_ai() {

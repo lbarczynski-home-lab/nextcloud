@@ -1,16 +1,16 @@
-FROM nextcloud:30-apache
+FROM nextcloud:34.0.3-apache
 
 # Install required system tools and libraries for multimedia processing and background workers:
 # - ffmpeg: Video preview generation and video transcoding (used by Memories app)
 # - ghostscript: PDF document preview generation
-# - libmagickcore-6.q16-6-extra & imagemagick: Extended image format preview support (HEIC, SVG, TIFF, etc.)
+# - libmagickcore-*-extra & imagemagick: Extended image format preview support (HEIC, SVG, TIFF, etc.)
 # - libimage-exiftool-perl (exiftool): Extracting metadata from photos and media (used by Memories app)
 # - procps: Process monitoring tools (ps) required by Nextcloud background checks
 # - curl & jq: Utilities for healthcheck and automated bootstrap scripts
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     ghostscript \
-    libmagickcore-6.q16-6-extra \
+    libmagickcore-*-extra \
     imagemagick \
     libimage-exiftool-perl \
     procps \
