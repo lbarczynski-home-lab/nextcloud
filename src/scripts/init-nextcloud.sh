@@ -88,6 +88,9 @@ configure_system() {
         idx=$((idx + 1))
     done
 
+    occ_cmd config:system:set forwarded_for_headers 0 --value="HTTP_CF_CONNECTING_IP"
+    occ_cmd config:system:set forwarded_for_headers 1 --value="HTTP_X_FORWARDED_FOR"
+
     occ_cmd config:system:set max_chunk_size --type=integer --value=52428800
     occ_cmd config:app:set files max_chunk_size --value="52428800"
     occ_cmd config:app:set dav max_chunk_size --value="52428800"
@@ -174,10 +177,9 @@ install_applications() {
 }
 
 configure_oidc() {
-    log_info "Configuring Authelia OIDC identity provider..."
+    log_info "Configuring Authelia OIDC identity provider (xbhl.online)..."
 
-    occ_cmd user_oidc:provider:delete authelia --no-interaction 2>/dev/null || true
-    occ_cmd user_oidc:provider authelia \
+    occ_cmd user_oidc:provider "xbhl.online" \
         --clientid="$OIDC_CLIENT_ID" \
         --clientsecret="$OIDC_CLIENT_SECRET" \
         --discoveryuri="$OIDC_PROVIDER_URL" \
@@ -188,6 +190,9 @@ configure_oidc() {
         --unique-uid=0 \
         --check-bearer=1 \
         --no-interaction
+
+    occ_cmd config:system:set user_oidc default_token_endpoint_auth_method --value="client_secret_post"
+    occ_cmd config:system:set user_oidc enrich_login_id_token_with_userinfo --type=boolean --value=true
 }
 
 configure_antivirus() {
