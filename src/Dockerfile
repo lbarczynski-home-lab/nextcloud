@@ -18,8 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /var/www/html/data
-
 COPY config/custom.ini /usr/local/etc/php/conf.d/custom.ini
 COPY scripts/entrypoint-wrapper.sh /entrypoint-wrapper.sh
 RUN chmod +x /entrypoint-wrapper.sh
