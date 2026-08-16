@@ -19,9 +19,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY config/custom.ini /usr/local/etc/php/conf.d/custom.ini
-COPY hooks/setup-datadir.sh /docker-entrypoint-hooks.d/pre-installation/setup-datadir.sh
-RUN chmod +x /docker-entrypoint-hooks.d/pre-installation/setup-datadir.sh
-
 COPY scripts/entrypoint-wrapper.sh /entrypoint-wrapper.sh
 RUN chmod +x /entrypoint-wrapper.sh
 
