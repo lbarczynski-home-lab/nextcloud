@@ -20,6 +20,8 @@ validate_environment() {
         OVERWRITEHOST
         TRUSTED_PROXIES
         NC_default_phone_region
+        NC_default_language
+        NC_default_locale
         NEXTCLOUD_MAIN_USER
         REDIS_HOST
         REDIS_HOST_PORT
@@ -27,8 +29,9 @@ validate_environment() {
         OIDC_CLIENT_ID
         OIDC_CLIENT_SECRET
         OIDC_PROVIDER_URL
-        OPENAI_API_KEY
-        OPENAI_API_BASE_URL
+        AI_API_KEY
+        AI_API_BASE_URL
+        AI_DEFAULT_MODEL
         SMTP_HOST
         SMTP_PORT
         SMTP_USERNAME
@@ -36,6 +39,8 @@ validate_environment() {
         SMTP_FROM
         COTURN_SECRET
         COTURN_HOST
+        NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION
+        NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION
     )
 
     local missing_vars=()
@@ -74,9 +79,17 @@ wait_for_installation() {
 }
 
 configure_system() {
-    log_info "Configuring system, network, and chunking parameters..."
+    local trashbin_retention="${NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION:?NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION is not set}"
+    local versions_retention="${NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION:?NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION is not set}"
+    local default_language="${NC_default_language:?NC_default_language is not set}"
+    local default_locale="${NC_default_locale:?NC_default_locale is not set}"
+    local default_phone_region="${NC_default_phone_region:?NC_default_phone_region is not set}"
 
-    occ_cmd config:system:set default_phone_region --value="$NC_default_phone_region"
+    log_info "Configuring system, network, locale, and chunking parameters..."
+
+    occ_cmd config:system:set default_language --value="$default_language"
+    occ_cmd config:system:set default_locale --value="$default_locale"
+    occ_cmd config:system:set default_phone_region --value="$default_phone_region"
     occ_cmd config:system:set maintenance_window_start --type=integer --value=1
     occ_cmd config:system:set overwriteprotocol --value="https"
     occ_cmd config:system:set overwritehost --value="$OVERWRITEHOST"
@@ -84,6 +97,9 @@ configure_system() {
     occ_cmd config:system:set hide_login_form --type=boolean --value=true
     occ_cmd config:system:set lost_password_link --value="disabled"
     occ_cmd config:system:set allow_user_to_change_display_name --type=boolean --value=false
+    occ_cmd config:system:set server_id --value="pve-01-cloud-vm"
+    occ_cmd config:system:set trashbin_retention_obligation --value="$trashbin_retention"
+    occ_cmd config:system:set versions_retention_obligation --value="$versions_retention"
 
     local idx=0
     for proxy in $TRUSTED_PROXIES; do
@@ -168,8 +184,23 @@ install_applications() {
         fulltextsearch
         fulltextsearch_elasticsearch
         files_fulltextsearch
+        files_fulltextsearch_tika
         integration_openai
+        assistant
+        llm2
         richdocuments
+        notify_push
+        groupfolders
+        news
+        dicomviewer
+        external
+        maps
+        forms
+        bookmarks
+        admin_audit
+        suspicious_login
+        twofactor_nextcloud_notification
+        drawio
     )
 
     for app in "${apps[@]}"; do
@@ -180,6 +211,7 @@ install_applications() {
     occ_cmd app:disable registration --no-interaction 2>/dev/null || true
     occ_cmd app:disable twofactor_totp --no-interaction 2>/dev/null || true
     occ_cmd app:disable user_ldap --no-interaction 2>/dev/null || true
+    occ_cmd app:disable cospend --no-interaction 2>/dev/null || true
 }
 
 configure_office() {
@@ -223,10 +255,11 @@ configure_antivirus() {
 }
 
 configure_fulltextsearch() {
-    log_info "Configuring Elasticsearch Full-Text Search integration..."
+    log_info "Configuring Elasticsearch Full-Text Search and Apache Tika integration..."
 
     occ_cmd fulltextsearch:configure '{"search_platform":"OCA\\FullTextSearch_Elasticsearch\\Platform\\ElasticSearchPlatform"}' --no-interaction
     occ_cmd fulltextsearch_elasticsearch:configure '{"elastic_host":"http://elasticsearch:9200","elastic_index":"nextcloud"}' --no-interaction
+    occ_cmd files_fulltextsearch_tika:configure '{"tika_host":"tika","tika_port":9998}' --no-interaction 2>/dev/null || true
 
     (
         sleep 20
@@ -243,10 +276,17 @@ configure_talk() {
 }
 
 configure_ai() {
-    log_info "Configuring OpenWebUI AI integration..."
+    local api_url="${AI_API_BASE_URL:?AI_API_BASE_URL is not set}"
+    local api_key="${AI_API_KEY:?AI_API_KEY is not set}"
+    local model="${AI_DEFAULT_MODEL:?AI_DEFAULT_MODEL is not set}"
 
-    occ_cmd config:app:set integration_openai api_key --value="$OPENAI_API_KEY"
-    occ_cmd config:app:set integration_openai api_url --value="$OPENAI_API_BASE_URL"
+    log_info "Configuring AI Assistant integration (URL: ${api_url}, model: ${model})..."
+
+    occ_cmd config:app:set integration_openai api_key --value="$api_key"
+    occ_cmd config:app:set integration_openai api_url --value="$api_url"
+    occ_cmd config:app:set integration_openai model --value="$model"
+    occ_cmd config:app:set integration_openai free_prompts --value="1"
+    occ_cmd config:app:set integration_openai context_size --value="32768"
 }
 
 configure_smtp() {
@@ -273,12 +313,19 @@ configure_smtp() {
     occ_cmd config:system:set mail_domain --value="$from_domain"
 }
 
+configure_client_push() {
+    log_info "Configuring Client Push (notify_push)..."
+
+    occ_cmd notify_push:setup "https://${OVERWRITEHOST}/push" --no-interaction 2>/dev/null || true
+}
+
 optimize_database() {
     log_info "Running database indexing and optimizations..."
 
     occ_cmd db:add-missing-indices --no-interaction || true
     occ_cmd db:add-missing-primary-keys --no-interaction || true
     occ_cmd db:add-missing-columns --no-interaction || true
+    occ_cmd maintenance:repair --include-expensive --no-interaction || true
 }
 
 ensure_admin_privileges() {
@@ -315,6 +362,7 @@ main() {
 
     configure_oidc
     configure_office
+    configure_client_push
     configure_antivirus
     configure_fulltextsearch
     configure_talk
