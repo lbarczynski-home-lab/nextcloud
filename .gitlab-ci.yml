@@ -32,7 +32,6 @@ include:
       cloudflare-tunnel-uuid: $OFFICE_CLOUDFLARE_TUNNEL_UUID
       cloudflare-zone-id: $CLOUDFLARE_ZONE_ID
       cloudflare-dns-api-token: $CLOUDFLARE_DNS_API_TOKEN
-      container-healthcheck-delay: 120
       delete-existing-container-files: true
 
   - component: $CI_SERVER_FQDN/home-lab/automations/docker-compose-service-deployment@v2.0.6
@@ -47,7 +46,6 @@ include:
       cloudflare-dns-entry-name: nextcloud-go-vod.intranet.xbhl.online
       cloudflare-zone-id: $CLOUDFLARE_ZONE_ID
       cloudflare-dns-api-token: $CLOUDFLARE_DNS_API_TOKEN
-      container-healthcheck-delay: 120
       delete-existing-container-files: true
 
 test:go-vod:docker-compose:
@@ -114,3 +112,8 @@ deploy:nextcloud:update-coturn-dns:
     - 'export DNS_CONTENT=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)'
     - 'echo "Resolved public router IP for Coturn: $DNS_CONTENT"'
     - !reference [.cloudflare-update-script, script]
+
+deploy:go-vod:start-service:
+  needs:
+    - "deploy:go-vod:deploy-files"
+    - "deploy:nextcloud:start-service"
