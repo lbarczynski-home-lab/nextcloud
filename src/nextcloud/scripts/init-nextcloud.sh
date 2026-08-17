@@ -20,6 +20,8 @@ validate_environment() {
         OVERWRITEHOST
         TRUSTED_PROXIES
         NC_default_phone_region
+        NC_default_language
+        NC_default_locale
         NEXTCLOUD_MAIN_USER
         REDIS_HOST
         REDIS_HOST_PORT
@@ -79,10 +81,15 @@ wait_for_installation() {
 configure_system() {
     local trashbin_retention="${NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION:?NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION is not set}"
     local versions_retention="${NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION:?NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION is not set}"
+    local default_language="${NC_default_language:?NC_default_language is not set}"
+    local default_locale="${NC_default_locale:?NC_default_locale is not set}"
+    local default_phone_region="${NC_default_phone_region:?NC_default_phone_region is not set}"
 
-    log_info "Configuring system, network, and chunking parameters..."
+    log_info "Configuring system, network, locale, and chunking parameters..."
 
-    occ_cmd config:system:set default_phone_region --value="$NC_default_phone_region"
+    occ_cmd config:system:set default_language --value="$default_language"
+    occ_cmd config:system:set default_locale --value="$default_locale"
+    occ_cmd config:system:set default_phone_region --value="$default_phone_region"
     occ_cmd config:system:set maintenance_window_start --type=integer --value=1
     occ_cmd config:system:set overwriteprotocol --value="https"
     occ_cmd config:system:set overwritehost --value="$OVERWRITEHOST"
