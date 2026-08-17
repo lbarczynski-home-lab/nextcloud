@@ -1,6 +1,7 @@
 services:
   collabora:
-    image: collabora/code:26.04.3.1.1
+    build: .
+    image: collabora-custom:latest
     container_name: collabora
     env_file:
       - envs/collabora.env
@@ -14,11 +15,11 @@ services:
     networks:
       - collabora_internal
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:9980/hosting/discovery || exit 1" ]
+      test: [ "CMD", "/usr/bin/wget", "-q", "-O", "-", "http://127.0.0.1:9980/hosting/discovery" ]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 20s
     restart: unless-stopped
 
   cloudflared:
