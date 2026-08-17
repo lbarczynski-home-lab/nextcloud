@@ -173,6 +173,8 @@ install_applications() {
         files_fulltextsearch
         files_fulltextsearch_tika
         integration_openai
+        assistant
+        llm2
         richdocuments
         notify_push
         groupfolders
@@ -260,10 +262,14 @@ configure_talk() {
 }
 
 configure_ai() {
-    log_info "Configuring OpenWebUI AI integration..."
+    local ai_model="${OPENAI_DEFAULT_MODEL:-gemini-2.5-flash}"
+    log_info "Configuring OpenWebUI AI Assistant integration (${ai_model})..."
 
     occ_cmd config:app:set integration_openai api_key --value="$OPENAI_API_KEY"
     occ_cmd config:app:set integration_openai api_url --value="$OPENAI_API_BASE_URL"
+    occ_cmd config:app:set integration_openai model --value="$ai_model"
+    occ_cmd config:app:set integration_openai free_prompts --value="1"
+    occ_cmd config:app:set integration_openai context_size --value="32768"
 }
 
 configure_smtp() {
