@@ -5,6 +5,7 @@ readonly CYCLE_INTERVAL_SECONDS=900
 readonly FTS_SYNC_INTERVAL_CYCLES=4
 readonly DAILY_MAINTENANCE_CYCLES=96
 readonly OCC_SCRIPT="/var/www/html/occ"
+readonly CRON_SCRIPT="/var/www/html/cron.php"
 readonly CONFIG_FILE="/var/www/html/config/config.php"
 
 log_info() {
@@ -36,9 +37,26 @@ is_nextcloud_ready() {
     [ -n "$installed" ] && [ -n "$maintenance" ]
 }
 
+run_system_cron() {
+    log_info "Executing Nextcloud system cron..."
+    runuser -u www-data -- php "$CRON_SCRIPT" >/dev/null 2>&1 || true
+}
+
 run_preview_generation() {
     log_info "Executing background preview pre-generation..."
     occ_cmd preview:pre-generate >/dev/null 2>&1 || true
+}
+
+run_memories_indexing() {
+    log_info "Executing Memories metadata indexing..."
+    occ_cmd memories:index >/dev/null 2>&1 || true
+}
+
+run_recognize_ai() {
+    log_info "Executing Recognize AI models and classification..."
+    occ_cmd recognize:download-models --no-interaction >/dev/null 2>&1 || true
+    occ_cmd recognize:classify --no-interaction >/dev/null 2>&1 || true
+    occ_cmd recognize:cluster-faces --no-interaction >/dev/null 2>&1 || true
 }
 
 run_fulltextsearch_sync() {
@@ -53,7 +71,27 @@ run_daily_maintenance() {
     occ_cmd maintenance:repair --include-expensive --no-interaction >/dev/null 2>&1 || true
 }
 
+run_all_maintenance() {
+    log_info "Starting full on-demand maintenance suite..."
+    run_system_cron
+    run_preview_generation
+    run_memories_indexing
+    run_recognize_ai
+    run_fulltextsearch_sync
+    run_daily_maintenance
+    log_info "Full maintenance suite completed successfully."
+}
+
 main() {
+    if [ "${1:-}" = "--now" ] || [ "${1:-}" = "--once" ]; then
+        if ! is_nextcloud_ready; then
+            log_error "Nextcloud is not ready or in maintenance mode. Aborting."
+            exit 1
+        fi
+        run_all_maintenance
+        exit 0
+    fi
+
     log_info "Maintenance worker started (preview: ${CYCLE_INTERVAL_SECONDS}s, search sync: every ${FTS_SYNC_INTERVAL_CYCLES} cycles, db cleanup: every ${DAILY_MAINTENANCE_CYCLES} cycles)"
 
     local fts_counter=0
@@ -62,6 +100,8 @@ main() {
     while true; do
         if is_nextcloud_ready; then
             run_preview_generation
+            run_memories_indexing
+            run_recognize_ai
 
             fts_counter=$((fts_counter + 1))
             if [ "$fts_counter" -ge "$FTS_SYNC_INTERVAL_CYCLES" ]; then

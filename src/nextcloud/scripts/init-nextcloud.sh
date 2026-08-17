@@ -204,6 +204,7 @@ install_applications() {
         twofactor_nextcloud_notification
         drawio
         epubviewer
+        recognize
     )
 
     for app in "${apps[@]}"; do
@@ -299,6 +300,11 @@ configure_ai() {
     occ_cmd config:app:set integration_openai context_size --value="32768"
 }
 
+configure_recognize() {
+    log_info "Configuring Nextcloud Recognize AI models..."
+    occ_cmd recognize:download-models --no-interaction 2>/dev/null || true
+}
+
 configure_smtp() {
     log_info "Configuring SMTP mail settings..."
 
@@ -377,6 +383,7 @@ main() {
     configure_fulltextsearch
     configure_talk
     configure_ai
+    configure_recognize
     configure_smtp
 
     optimize_database

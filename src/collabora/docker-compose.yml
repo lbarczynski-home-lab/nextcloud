@@ -11,6 +11,7 @@ services:
       dictionaries: "pl_PL en_US en_GB"
     cap_add:
       - MKNOD
+      - SYS_ADMIN
     networks:
       - collabora_internal
     healthcheck:
