@@ -200,6 +200,7 @@ install_applications() {
         admin_audit
         suspicious_login
         twofactor_nextcloud_notification
+        drawio
     )
 
     for app in "${apps[@]}"; do
