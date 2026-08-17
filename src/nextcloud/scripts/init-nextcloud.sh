@@ -36,6 +36,8 @@ validate_environment() {
         SMTP_FROM
         COTURN_SECRET
         COTURN_HOST
+        NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION
+        NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION
     )
 
     local missing_vars=()
@@ -84,9 +86,9 @@ configure_system() {
     occ_cmd config:system:set hide_login_form --type=boolean --value=true
     occ_cmd config:system:set lost_password_link --value="disabled"
     occ_cmd config:system:set allow_user_to_change_display_name --type=boolean --value=false
-    occ_cmd config:system:set server_id --value="cloud-vm-01"
-    occ_cmd config:system:set trashbin_retention_obligation --value="${NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION:-auto, 365}"
-    occ_cmd config:system:set versions_retention_obligation --value="${NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION:-auto, 365}"
+    occ_cmd config:system:set server_id --value="pve-01-cloud-vm"
+    occ_cmd config:system:set trashbin_retention_obligation --value="${NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION:?NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION is not set}"
+    occ_cmd config:system:set versions_retention_obligation --value="${NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION:?NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION is not set}"
 
     local idx=0
     for proxy in $TRUSTED_PROXIES; do
