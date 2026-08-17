@@ -20,7 +20,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY config/custom.ini /usr/local/etc/php/conf.d/custom.ini
 COPY scripts/entrypoint-wrapper.sh /entrypoint-wrapper.sh
-RUN chmod +x /entrypoint-wrapper.sh
+RUN chmod +x /entrypoint-wrapper.sh && \
+    a2enmod headers env && \
+    echo 'Header always set Strict-Transport-Security "max-age=15552000; includeSubDomains"' > /etc/apache2/conf-available/hsts.conf && \
+    a2enconf hsts
 
 ENTRYPOINT ["/entrypoint-wrapper.sh"]
 CMD ["apache2-foreground"]

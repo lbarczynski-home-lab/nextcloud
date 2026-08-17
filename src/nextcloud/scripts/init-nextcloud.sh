@@ -84,6 +84,7 @@ configure_system() {
     occ_cmd config:system:set hide_login_form --type=boolean --value=true
     occ_cmd config:system:set lost_password_link --value="disabled"
     occ_cmd config:system:set allow_user_to_change_display_name --type=boolean --value=false
+    occ_cmd config:system:set server_id --value="cloud-vm-01"
 
     local idx=0
     for proxy in $TRUSTED_PROXIES; do
@@ -279,6 +280,7 @@ optimize_database() {
     occ_cmd db:add-missing-indices --no-interaction || true
     occ_cmd db:add-missing-primary-keys --no-interaction || true
     occ_cmd db:add-missing-columns --no-interaction || true
+    occ_cmd maintenance:repair --include-expensive --no-interaction || true
 }
 
 ensure_admin_privileges() {
