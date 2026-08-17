@@ -175,6 +175,16 @@ install_applications() {
         integration_openai
         richdocuments
         notify_push
+        groupfolders
+        news
+        dicomviewer
+        external
+        maps
+        forms
+        bookmarks
+        admin_audit
+        suspicious_login
+        twofactor_nextcloud_notification
     )
 
     for app in "${apps[@]}"; do
@@ -185,6 +195,7 @@ install_applications() {
     occ_cmd app:disable registration --no-interaction 2>/dev/null || true
     occ_cmd app:disable twofactor_totp --no-interaction 2>/dev/null || true
     occ_cmd app:disable user_ldap --no-interaction 2>/dev/null || true
+    occ_cmd app:disable cospend --no-interaction 2>/dev/null || true
 }
 
 configure_office() {
