@@ -97,9 +97,11 @@ configure_system() {
     occ_cmd config:system:set hide_login_form --type=boolean --value=true
     occ_cmd config:system:set lost_password_link --value="disabled"
     occ_cmd config:system:set allow_user_to_change_display_name --type=boolean --value=false
+    occ_cmd config:system:set serverid --type=integer --value=1
     occ_cmd config:system:set server_id --value="pve-01-cloud-vm"
     occ_cmd config:system:set trashbin_retention_obligation --value="$trashbin_retention"
     occ_cmd config:system:set versions_retention_obligation --value="$versions_retention"
+    occ_cmd twofactorauth:enforce --on --no-interaction 2>/dev/null || true
 
     local idx=0
     for proxy in $TRUSTED_PROXIES; do
@@ -201,6 +203,7 @@ install_applications() {
         suspicious_login
         twofactor_nextcloud_notification
         drawio
+        epubviewer
     )
 
     for app in "${apps[@]}"; do
@@ -212,6 +215,7 @@ install_applications() {
     occ_cmd app:disable twofactor_totp --no-interaction 2>/dev/null || true
     occ_cmd app:disable user_ldap --no-interaction 2>/dev/null || true
     occ_cmd app:disable cospend --no-interaction 2>/dev/null || true
+    occ_cmd app:disable app_api --no-interaction 2>/dev/null || true
 }
 
 configure_office() {
@@ -282,10 +286,16 @@ configure_ai() {
 
     log_info "Configuring AI Assistant integration (URL: ${api_url}, model: ${model})..."
 
-    occ_cmd config:app:set integration_openai api_key --value="$api_key"
+    occ_cmd config:app:set integration_openai url --value="$api_url"
     occ_cmd config:app:set integration_openai api_url --value="$api_url"
+    occ_cmd config:app:set integration_openai api_key --value="$api_key"
+    occ_cmd config:app:set integration_openai default_completion_model_id --value="$model"
     occ_cmd config:app:set integration_openai model --value="$model"
+    occ_cmd config:app:set integration_openai llm_provider_enabled --value="1"
+    occ_cmd config:app:set integration_openai chat_endpoint_enabled --value="1"
+    occ_cmd config:app:set integration_openai translation_provider_enabled --value="1"
     occ_cmd config:app:set integration_openai free_prompts --value="1"
+    occ_cmd config:app:set integration_openai max_tokens --value="8192"
     occ_cmd config:app:set integration_openai context_size --value="32768"
 }
 

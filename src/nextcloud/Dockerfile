@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-COPY config/custom.ini /usr/local/etc/php/conf.d/custom.ini
+COPY config/custom.ini /usr/local/etc/php/conf.d/zz-custom.ini
 COPY scripts/entrypoint-wrapper.sh /entrypoint-wrapper.sh
 RUN chmod +x /entrypoint-wrapper.sh && \
     a2enmod headers env proxy proxy_http proxy_wstunnel && \
