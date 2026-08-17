@@ -207,7 +207,8 @@ services:
       - NEXTCLOUD_URL=http://nextcloud
     volumes:
       - nextcloud_html:/var/www/html:ro
-    command: /var/www/html/config/config.php
+    entrypoint: [ "/notify_push" ]
+    command: [ "/var/www/html/config/config.php" ]
     networks:
       - nextcloud_internal
     depends_on:
