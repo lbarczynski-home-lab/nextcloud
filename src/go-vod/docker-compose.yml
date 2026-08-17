@@ -32,10 +32,9 @@ services:
       - "traefik.docker.network=proxy"
     healthcheck:
       test: [ "CMD-SHELL", "curl -s -o /dev/null http://127.0.0.1:47788/ || exit 1" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
     restart: unless-stopped
 
 networks:
