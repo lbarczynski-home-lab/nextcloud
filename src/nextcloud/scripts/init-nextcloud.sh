@@ -229,6 +229,15 @@ configure_office() {
     occ_cmd richdocuments:activate-config --no-interaction 2>/dev/null || true
 }
 
+configure_memories() {
+    log_info "Configuring Nextcloud Memories with remote go-vod transcoder (https://nextcloud-go-vod.intranet.xbhl.online)..."
+
+    occ_cmd config:app:set memories vod.external --value="https://nextcloud-go-vod.intranet.xbhl.online"
+    occ_cmd config:app:set memories vod.ffmpeg --value="/usr/bin/ffmpeg"
+    occ_cmd config:app:set memories vod.ffprobe --value="/usr/bin/ffprobe"
+    occ_cmd config:app:set memories exiftool --value="/usr/bin/exiftool"
+}
+
 configure_oidc() {
     log_info "Configuring Authelia OIDC identity provider (xbhl.online)..."
 
@@ -378,6 +387,7 @@ main() {
 
     configure_oidc
     configure_office
+    configure_memories
     configure_client_push
     configure_antivirus
     configure_fulltextsearch
