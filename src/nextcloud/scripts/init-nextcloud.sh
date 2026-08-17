@@ -171,6 +171,7 @@ install_applications() {
         fulltextsearch
         fulltextsearch_elasticsearch
         files_fulltextsearch
+        files_fulltextsearch_tika
         integration_openai
         richdocuments
         notify_push
@@ -227,10 +228,11 @@ configure_antivirus() {
 }
 
 configure_fulltextsearch() {
-    log_info "Configuring Elasticsearch Full-Text Search integration..."
+    log_info "Configuring Elasticsearch Full-Text Search and Apache Tika integration..."
 
     occ_cmd fulltextsearch:configure '{"search_platform":"OCA\\FullTextSearch_Elasticsearch\\Platform\\ElasticSearchPlatform"}' --no-interaction
     occ_cmd fulltextsearch_elasticsearch:configure '{"elastic_host":"http://elasticsearch:9200","elastic_index":"nextcloud"}' --no-interaction
+    occ_cmd files_fulltextsearch_tika:configure '{"tika_host":"tika","tika_port":9998}' --no-interaction 2>/dev/null || true
 
     (
         sleep 20
