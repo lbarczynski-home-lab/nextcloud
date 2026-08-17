@@ -21,9 +21,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY config/custom.ini /usr/local/etc/php/conf.d/custom.ini
 COPY scripts/entrypoint-wrapper.sh /entrypoint-wrapper.sh
 RUN chmod +x /entrypoint-wrapper.sh && \
-    a2enmod headers env && \
+    a2enmod headers env proxy proxy_http proxy_wstunnel && \
     echo 'Header always set Strict-Transport-Security "max-age=15552000; includeSubDomains"' > /etc/apache2/conf-available/hsts.conf && \
-    a2enconf hsts
+    printf 'ProxyPass /push/ws ws://notify_push:7867/ws\nProxyPass /push http://notify_push:7867\nProxyPassReverse /push http://notify_push:7867\n' > /etc/apache2/conf-available/notify_push.conf && \
+    a2enconf hsts notify_push
 
 ENTRYPOINT ["/entrypoint-wrapper.sh"]
 CMD ["apache2-foreground"]

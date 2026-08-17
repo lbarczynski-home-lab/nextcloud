@@ -173,6 +173,7 @@ install_applications() {
         files_fulltextsearch
         integration_openai
         richdocuments
+        notify_push
     )
 
     for app in "${apps[@]}"; do
@@ -276,6 +277,12 @@ configure_smtp() {
     occ_cmd config:system:set mail_domain --value="$from_domain"
 }
 
+configure_client_push() {
+    log_info "Configuring Client Push (notify_push)..."
+
+    occ_cmd notify_push:setup "https://${OVERWRITEHOST}/push" --no-interaction 2>/dev/null || true
+}
+
 optimize_database() {
     log_info "Running database indexing and optimizations..."
 
@@ -319,6 +326,7 @@ main() {
 
     configure_oidc
     configure_office
+    configure_client_push
     configure_antivirus
     configure_fulltextsearch
     configure_talk

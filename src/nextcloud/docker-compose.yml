@@ -184,6 +184,28 @@ services:
       start_period: 15s
     restart: unless-stopped
 
+  notify_push:
+    image: nextcloud/notify_push:0.7.0
+    container_name: nextcloud_notify_push
+    environment:
+      - PORT=7867
+      - NEXTCLOUD_URL=http://nextcloud
+    env_file:
+      - envs/db.env
+      - envs/redis.env
+    volumes:
+      - nextcloud_html:/var/www/html:ro
+    networks:
+      - nextcloud_internal
+    depends_on:
+      nextcloud:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres_db:
+        condition: service_healthy
+    restart: unless-stopped
+
   cloudflared:
     image: cloudflare/cloudflared:2026.8.2
     container_name: nextcloud_cloudflared
