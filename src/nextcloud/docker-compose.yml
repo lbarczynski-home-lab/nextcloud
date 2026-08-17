@@ -32,6 +32,8 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+      tika:
+        condition: service_healthy
       coturn:
         condition: service_healthy
     restart: unless-stopped
@@ -168,6 +170,12 @@ services:
     container_name: nextcloud_tika
     networks:
       - nextcloud_internal
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:9998/version" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
 
   coturn:
