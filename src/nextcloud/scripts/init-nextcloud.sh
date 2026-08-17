@@ -85,6 +85,8 @@ configure_system() {
     occ_cmd config:system:set lost_password_link --value="disabled"
     occ_cmd config:system:set allow_user_to_change_display_name --type=boolean --value=false
     occ_cmd config:system:set server_id --value="cloud-vm-01"
+    occ_cmd config:system:set trashbin_retention_obligation --value="${NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION:-auto, 365}"
+    occ_cmd config:system:set versions_retention_obligation --value="${NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION:-auto, 365}"
 
     local idx=0
     for proxy in $TRUSTED_PROXIES; do

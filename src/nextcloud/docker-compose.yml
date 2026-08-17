@@ -10,6 +10,7 @@ services:
       - envs/ai.env
       - envs/smtp.env
       - envs/talk.env
+      - envs/retention.env
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
@@ -46,6 +47,7 @@ services:
       - envs/oidc.env
       - envs/ai.env
       - envs/smtp.env
+      - envs/retention.env
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
@@ -67,6 +69,7 @@ services:
       - envs/oidc.env
       - envs/ai.env
       - envs/smtp.env
+      - envs/retention.env
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
