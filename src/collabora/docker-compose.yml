@@ -1,7 +1,6 @@
 services:
   collabora:
     build: .
-    image: collabora-custom:latest
     container_name: collabora
     env_file:
       - envs/collabora.env
