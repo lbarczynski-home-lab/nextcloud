@@ -29,6 +29,7 @@ validate_environment() {
         OIDC_PROVIDER_URL
         AI_API_KEY
         AI_API_BASE_URL
+        AI_DEFAULT_MODEL
         SMTP_HOST
         SMTP_PORT
         SMTP_USERNAME
@@ -76,6 +77,9 @@ wait_for_installation() {
 }
 
 configure_system() {
+    local trashbin_retention="${NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION:?NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION is not set}"
+    local versions_retention="${NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION:?NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION is not set}"
+
     log_info "Configuring system, network, and chunking parameters..."
 
     occ_cmd config:system:set default_phone_region --value="$NC_default_phone_region"
@@ -87,8 +91,8 @@ configure_system() {
     occ_cmd config:system:set lost_password_link --value="disabled"
     occ_cmd config:system:set allow_user_to_change_display_name --type=boolean --value=false
     occ_cmd config:system:set server_id --value="pve-01-cloud-vm"
-    occ_cmd config:system:set trashbin_retention_obligation --value="${NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION:?NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION is not set}"
-    occ_cmd config:system:set versions_retention_obligation --value="${NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION:?NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION is not set}"
+    occ_cmd config:system:set trashbin_retention_obligation --value="$trashbin_retention"
+    occ_cmd config:system:set versions_retention_obligation --value="$versions_retention"
 
     local idx=0
     for proxy in $TRUSTED_PROXIES; do
@@ -264,12 +268,15 @@ configure_talk() {
 }
 
 configure_ai() {
-    local ai_model="${AI_DEFAULT_MODEL:-gemini-2.5-flash-lite}"
-    log_info "Configuring OpenWebUI AI Assistant integration (${ai_model})..."
+    local api_url="${AI_API_BASE_URL:?AI_API_BASE_URL is not set}"
+    local api_key="${AI_API_KEY:?AI_API_KEY is not set}"
+    local model="${AI_DEFAULT_MODEL:?AI_DEFAULT_MODEL is not set}"
 
-    occ_cmd config:app:set integration_openai api_key --value="$AI_API_KEY"
-    occ_cmd config:app:set integration_openai api_url --value="$AI_API_BASE_URL"
-    occ_cmd config:app:set integration_openai model --value="$ai_model"
+    log_info "Configuring AI Assistant integration (URL: ${api_url}, model: ${model})..."
+
+    occ_cmd config:app:set integration_openai api_key --value="$api_key"
+    occ_cmd config:app:set integration_openai api_url --value="$api_url"
+    occ_cmd config:app:set integration_openai model --value="$model"
     occ_cmd config:app:set integration_openai free_prompts --value="1"
     occ_cmd config:app:set integration_openai context_size --value="32768"
 }
