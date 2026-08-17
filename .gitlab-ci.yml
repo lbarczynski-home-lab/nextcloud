@@ -58,7 +58,7 @@ setup:generate-build-artifacts:
     - 'sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${NEXTCLOUD_DB_PASSWORD:?NEXTCLOUD_DB_PASSWORD is not set}|" .nextcloud_generated_sources/envs/db.env'
     - 'sed -i "s|^REDIS_HOST_PASSWORD=.*|REDIS_HOST_PASSWORD=${NEXTCLOUD_REDIS_PASSWORD:?NEXTCLOUD_REDIS_PASSWORD is not set}|" .nextcloud_generated_sources/envs/redis.env'
     - 'sed -i "s|^OIDC_CLIENT_SECRET=.*|OIDC_CLIENT_SECRET=${NEXTCLOUD_OAUTH_CLIENT_SECRET:?NEXTCLOUD_OAUTH_CLIENT_SECRET is not set}|" .nextcloud_generated_sources/envs/oidc.env'
-    - 'sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${OPEN_WEBUI_API_KEY:?OPEN_WEBUI_API_KEY is not set}|" .nextcloud_generated_sources/envs/ai.env'
+    - 'sed -i "s|^AI_API_KEY=.*|AI_API_KEY=${OPEN_WEBUI_API_KEY:?OPEN_WEBUI_API_KEY is not set}|" .nextcloud_generated_sources/envs/ai.env'
     - 'sed -i "s|^SMTP_HOST=.*|SMTP_HOST=${SMTP_HOST:?SMTP_HOST is not set}|" .nextcloud_generated_sources/envs/smtp.env'
     - 'sed -i "s|^SMTP_PORT=.*|SMTP_PORT=${SMTP_PORT:?SMTP_PORT is not set}|" .nextcloud_generated_sources/envs/smtp.env'
     - 'sed -i "s|^SMTP_USERNAME=.*|SMTP_USERNAME=${SMTP_USERNAME:?SMTP_USERNAME is not set}|" .nextcloud_generated_sources/envs/smtp.env'

@@ -27,8 +27,8 @@ validate_environment() {
         OIDC_CLIENT_ID
         OIDC_CLIENT_SECRET
         OIDC_PROVIDER_URL
-        OPENAI_API_KEY
-        OPENAI_API_BASE_URL
+        AI_API_KEY
+        AI_API_BASE_URL
         SMTP_HOST
         SMTP_PORT
         SMTP_USERNAME
@@ -262,11 +262,11 @@ configure_talk() {
 }
 
 configure_ai() {
-    local ai_model="${OPENAI_DEFAULT_MODEL:-gemini-2.5-flash}"
+    local ai_model="${AI_DEFAULT_MODEL:-gemini-2.5-flash-lite}"
     log_info "Configuring OpenWebUI AI Assistant integration (${ai_model})..."
 
-    occ_cmd config:app:set integration_openai api_key --value="$OPENAI_API_KEY"
-    occ_cmd config:app:set integration_openai api_url --value="$OPENAI_API_BASE_URL"
+    occ_cmd config:app:set integration_openai api_key --value="$AI_API_KEY"
+    occ_cmd config:app:set integration_openai api_url --value="$AI_API_BASE_URL"
     occ_cmd config:app:set integration_openai model --value="$ai_model"
     occ_cmd config:app:set integration_openai free_prompts --value="1"
     occ_cmd config:app:set integration_openai context_size --value="32768"
