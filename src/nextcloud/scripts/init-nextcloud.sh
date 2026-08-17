@@ -282,10 +282,16 @@ configure_ai() {
 
     log_info "Configuring AI Assistant integration (URL: ${api_url}, model: ${model})..."
 
-    occ_cmd config:app:set integration_openai api_key --value="$api_key"
+    occ_cmd config:app:set integration_openai url --value="$api_url"
     occ_cmd config:app:set integration_openai api_url --value="$api_url"
+    occ_cmd config:app:set integration_openai api_key --value="$api_key"
+    occ_cmd config:app:set integration_openai default_completion_model_id --value="$model"
     occ_cmd config:app:set integration_openai model --value="$model"
+    occ_cmd config:app:set integration_openai llm_provider_enabled --value="1"
+    occ_cmd config:app:set integration_openai chat_endpoint_enabled --value="1"
+    occ_cmd config:app:set integration_openai translation_provider_enabled --value="1"
     occ_cmd config:app:set integration_openai free_prompts --value="1"
+    occ_cmd config:app:set integration_openai max_tokens --value="8192"
     occ_cmd config:app:set integration_openai context_size --value="32768"
 }
 
