@@ -43,7 +43,6 @@ setup:generate-build-artifacts:
     - 'sed -i "s|^SMTP_PASSWORD=.*|SMTP_PASSWORD=${SMTP_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
     - 'sed -i "s|^SMTP_FROM=.*|SMTP_FROM=${SMTP_FROM}|" $BUILD_ARTIFACTS_DIR/envs/smtp.env'
     - 'sed -i "s|^COTURN_SECRET=.*|COTURN_SECRET=${NEXTCLOUD_COTURN_SECRET}|" $BUILD_ARTIFACTS_DIR/envs/talk.env'
-    - 'sed -i "s|^LDAP_AGENT_PASSWORD=.*|LDAP_AGENT_PASSWORD=${LDAP_PASSWORD}|" $BUILD_ARTIFACTS_DIR/envs/ldap.env'
 
 deploy:nextcloud:update-coturn-dns:
   stage: deploy
