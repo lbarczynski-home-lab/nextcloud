@@ -169,6 +169,7 @@ install_applications() {
         fulltextsearch_elasticsearch
         files_fulltextsearch
         integration_openai
+        richdocuments
     )
 
     for app in "${apps[@]}"; do
@@ -179,6 +180,16 @@ install_applications() {
     occ_cmd app:disable registration --no-interaction 2>/dev/null || true
     occ_cmd app:disable twofactor_totp --no-interaction 2>/dev/null || true
     occ_cmd app:disable user_ldap --no-interaction 2>/dev/null || true
+}
+
+configure_office() {
+    log_info "Configuring Nextcloud Office (Collabora Online at https://office.xbhl.online)..."
+
+    occ_cmd app:enable richdocuments --no-interaction 2>/dev/null || true
+    occ_cmd config:app:set richdocuments wopi_url --value="https://office.xbhl.online"
+    occ_cmd config:app:set richdocuments public_wopi_url --value="https://office.xbhl.online"
+    occ_cmd config:app:set richdocuments doc_format --value="ooxml"
+    occ_cmd richdocuments:activate-config --no-interaction 2>/dev/null || true
 }
 
 configure_oidc() {
@@ -303,6 +314,7 @@ main() {
     install_applications
 
     configure_oidc
+    configure_office
     configure_antivirus
     configure_fulltextsearch
     configure_talk
