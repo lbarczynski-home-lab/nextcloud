@@ -16,10 +16,9 @@ services:
       - collabora_internal
     healthcheck:
       test: [ "CMD", "/usr/bin/wget", "-q", "-O", "-", "http://127.0.0.1:9980/hosting/discovery" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 20s
     restart: unless-stopped
 
   cloudflared:

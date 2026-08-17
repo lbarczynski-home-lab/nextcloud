@@ -19,10 +19,9 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "/scripts/healthcheck.sh" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 180s
+      interval: 5s
+      timeout: 5s
+      retries: 15
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -107,8 +106,7 @@ services:
       test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} || exit 1" ]
       interval: 5s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 5
     restart: unless-stopped
 
   redis:
@@ -125,8 +123,7 @@ services:
       test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_HOST_PASSWORD\" ping | grep PONG || exit 1" ]
       interval: 5s
       timeout: 5s
-      retries: 10
-      start_period: 15s
+      retries: 5
     restart: unless-stopped
 
   clamav:
@@ -140,10 +137,9 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "nc -z 127.0.0.1 3310 || exit 1" ]
-      interval: 10s
-      timeout: 10s
-      retries: 20
-      start_period: 300s
+      interval: 5s
+      timeout: 5s
+      retries: 30
     restart: unless-stopped
 
   elasticsearch:
@@ -159,10 +155,9 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status' || exit 1" ]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 45s
+      interval: 5s
+      timeout: 5s
+      retries: 15
     restart: unless-stopped
 
   tika:
@@ -172,10 +167,9 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:9998/version" ]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 15s
+      retries: 10
     restart: unless-stopped
 
   coturn:
@@ -193,10 +187,9 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "turnutils_stunclient 127.0.0.1 3478 || exit 1" ]
-      interval: 15s
-      timeout: 10s
+      interval: 5s
+      timeout: 5s
       retries: 5
-      start_period: 15s
     restart: unless-stopped
 
   notify_push:
