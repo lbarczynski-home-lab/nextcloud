@@ -192,16 +192,14 @@ services:
     restart: unless-stopped
 
   notify_push:
-    image: nextcloud/notify_push:0.7.0
+    image: ghcr.io/nextcloud/notify_push:latest
     container_name: nextcloud_notify_push
     environment:
       - PORT=7867
       - NEXTCLOUD_URL=http://nextcloud
-    env_file:
-      - envs/db.env
-      - envs/redis.env
     volumes:
       - nextcloud_html:/var/www/html:ro
+    command: /var/www/html/config/config.php
     networks:
       - nextcloud_internal
     depends_on:
