@@ -221,6 +221,7 @@ install_applications() {
 
         # UI & Navigation Integrations
         integration_giphy
+        maps
         news
         notify_push
         side_menu
@@ -236,7 +237,6 @@ install_applications() {
         cospend
         dicomviewer
         external
-        maps
         registration
         twofactor_totp
         user_ldap
