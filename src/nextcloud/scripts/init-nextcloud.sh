@@ -318,8 +318,9 @@ configure_talk() {
     occ_cmd config:app:set spreed turn_servers --value='[{"server":"'"$COTURN_HOST"':3478","secret":"'"$COTURN_SECRET"'","protocols":"udp,tcp"}]'
 
     if [ -n "${GIPHY_API_KEY:-}" ] && [ "$GIPHY_API_KEY" != "PLACEHOLDER" ]; then
-        log_info "Configuring Giphy API Key for Talk integration..."
+        log_info "Configuring Giphy API Key and rating filter (r) for Talk integration..."
         occ_cmd config:app:set integration_giphy api_key --value="$GIPHY_API_KEY"
+        occ_cmd config:app:set integration_giphy rating_filter --value="r"
     fi
 }
 
