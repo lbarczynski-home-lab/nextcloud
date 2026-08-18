@@ -8,6 +8,7 @@ services:
       - envs/redis.env
       - envs/oidc.env
       - envs/ai.env
+      - envs/api-keys.env
       - envs/smtp.env
       - envs/talk.env
       - envs/retention.env

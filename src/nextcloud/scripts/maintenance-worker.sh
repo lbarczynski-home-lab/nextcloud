@@ -66,6 +66,7 @@ run_fulltextsearch_sync() {
 
 run_daily_maintenance() {
     log_info "Executing periodic database optimization, file cleanup, and repair..."
+    occ_cmd recognize:recrawl --no-interaction >/dev/null 2>&1 || true
     occ_cmd files:cleanup --no-interaction >/dev/null 2>&1 || true
     occ_cmd db:optimize --no-interaction >/dev/null 2>&1 || true
     occ_cmd maintenance:repair --include-expensive --no-interaction >/dev/null 2>&1 || true
@@ -76,6 +77,7 @@ run_all_maintenance() {
     run_system_cron
     run_preview_generation
     run_memories_indexing
+    occ_cmd recognize:recrawl --no-interaction >/dev/null 2>&1 || true
     run_recognize_ai
     run_fulltextsearch_sync
     run_daily_maintenance

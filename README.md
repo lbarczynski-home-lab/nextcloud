@@ -56,6 +56,7 @@ docker exec -it nextcloud /scripts/maintenance-worker.sh --now
 - `NEXTCLOUD_OAUTH_CLIENT_SECRET`
 - `NEXTCLOUD_COTURN_SECRET`
 - `OPEN_WEBUI_API_KEY`
+- `GIPHY_API_KEY`
 
 ### Global Variables
 - `SSH_USER` / `SSH_PRIVATE_KEY`

@@ -174,6 +174,7 @@ install_applications() {
     local apps=(
         # Authentication & Security
         admin_audit
+        bruteforcesettings
         files_antivirus
         suspicious_login
         twofactor_nextcloud_notification
@@ -220,6 +221,7 @@ install_applications() {
 
         # UI & Navigation Integrations
         integration_giphy
+        maps
         news
         notify_push
         side_menu
@@ -235,7 +237,6 @@ install_applications() {
         cospend
         dicomviewer
         external
-        maps
         registration
         twofactor_totp
         user_ldap
@@ -303,6 +304,9 @@ configure_fulltextsearch() {
     occ_cmd fulltextsearch:configure '{"search_platform":"OCA\\FullTextSearch_Elasticsearch\\Platform\\ElasticSearchPlatform"}' --no-interaction
     occ_cmd fulltextsearch_elasticsearch:configure '{"elastic_host":"http://elasticsearch:9200","elastic_index":"nextcloud"}' --no-interaction
     occ_cmd files_fulltextsearch_tika:configure '{"tika_host":"tika","tika_port":9998}' --no-interaction 2>/dev/null || true
+    occ_cmd files_fulltextsearch:configure '{"files_metadata":"1","files_metadata_max_size":"100"}' --no-interaction 2>/dev/null || true
+    occ_cmd config:app:set files_fulltextsearch_metadata metadata_indexed --value="1"
+    occ_cmd config:app:set files_fulltextsearch_metadata files_metadata_max_size --value="100"
 
     (
         sleep 20
@@ -316,6 +320,12 @@ configure_talk() {
 
     occ_cmd config:app:set spreed stun_servers --value='["'"$COTURN_HOST"':3478","stun.nextcloud.com:443"]'
     occ_cmd config:app:set spreed turn_servers --value='[{"server":"'"$COTURN_HOST"':3478","secret":"'"$COTURN_SECRET"'","protocols":"udp,tcp"}]'
+
+    if [ -n "${GIPHY_API_KEY:-}" ] && [ "$GIPHY_API_KEY" != "PLACEHOLDER" ]; then
+        log_info "Configuring Giphy API Key and rating filter (r) for Talk integration..."
+        occ_cmd config:app:set integration_giphy api_key --value="$GIPHY_API_KEY"
+        occ_cmd config:app:set integration_giphy rating_filter --value="r"
+    fi
 }
 
 configure_ai() {
@@ -328,6 +338,8 @@ configure_ai() {
     occ_cmd config:app:set integration_openai url --value="$api_url"
     occ_cmd config:app:set integration_openai api_url --value="$api_url"
     occ_cmd config:app:set integration_openai api_key --value="$api_key"
+    occ_cmd config:app:set integration_openai name --value="OpenWebUI@XBHL.online"
+    occ_cmd config:app:set integration_openai service_name --value="OpenWebUI@XBHL.online"
     occ_cmd config:app:set integration_openai default_completion_model_id --value="$model"
     occ_cmd config:app:set integration_openai model --value="$model"
     occ_cmd config:app:set integration_openai llm_provider_enabled --value="1"
@@ -339,8 +351,21 @@ configure_ai() {
 }
 
 configure_recognize() {
-    log_info "Configuring Nextcloud Recognize AI models..."
+    log_info "Configuring Nextcloud Recognize AI models and features..."
+
+    occ_cmd config:app:set recognize face_recognition_enabled --value="1"
+    occ_cmd config:app:set recognize object_recognition_enabled --value="1"
+    occ_cmd config:app:set recognize landmark_recognition_enabled --value="1"
+    occ_cmd config:app:set recognize music_recognition_enabled --value="1"
+    occ_cmd config:app:set recognize video_recognition_enabled --value="1"
+
     occ_cmd recognize:download-models --no-interaction 2>/dev/null || true
+
+    (
+        sleep 20
+        log_info "Triggering initial Recognize full library recrawl in background..."
+        occ_cmd recognize:recrawl --no-interaction >/dev/null 2>&1 || true
+    ) &
 }
 
 configure_smtp() {
@@ -380,6 +405,24 @@ optimize_database() {
     occ_cmd db:add-missing-primary-keys --no-interaction || true
     occ_cmd db:add-missing-columns --no-interaction || true
     occ_cmd maintenance:repair --include-expensive --no-interaction || true
+}
+
+configure_security() {
+    log_info "Configuring Brute Force & Rate Limit Protection Whitelists..."
+
+    local public_ip
+    public_ip=$(curl -s --max-time 5 https://api.ipify.org || curl -s --max-time 5 https://ifconfig.me || true)
+
+    local whitelist_json='["127.0.0.1","10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"'
+    if [ -n "$public_ip" ]; then
+        log_info "Detected public IP: $public_ip (adding to security whitelist)"
+        whitelist_json="${whitelist_json},\"${public_ip}\""
+    fi
+    whitelist_json="${whitelist_json}]"
+
+    occ_cmd config:system:set ratelimit.protection.enabled --type=boolean --value=true
+    occ_cmd config:app:set bruteforcesettings whitelist --value="$whitelist_json"
+    occ_cmd config:app:set bruteforcesettings apply_allowlist_to_ratelimit --value="1"
 }
 
 ensure_admin_privileges() {
@@ -424,6 +467,7 @@ main() {
     configure_ai
     configure_recognize
     configure_smtp
+    configure_security
 
     optimize_database
     ensure_admin_privileges
