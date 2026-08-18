@@ -172,40 +172,58 @@ install_applications() {
     log_info "Installing and enabling required applications..."
 
     local apps=(
-        user_oidc
-        previewgenerator
-        memories
-        calendar
-        contacts
-        tasks
-        notes
-        deck
-        mail
-        spreed
-        files_antivirus
-        fulltextsearch
-        fulltextsearch_elasticsearch
-        files_fulltextsearch
-        files_fulltextsearch_tika
-        integration_openai
-        assistant
-        llm2
-        richdocuments
-        notify_push
-        groupfolders
-        news
-        dicomviewer
-        external
-        maps
-        forms
-        bookmarks
+        # Authentication & Security
         admin_audit
+        files_antivirus
         suspicious_login
         twofactor_nextcloud_notification
-        drawio
-        epubviewer
+        user_oidc
+
+        # AI & Smart Features
+        assistant
+        context_chat
+        integration_openai
+        llm2
         recognize
-        custom_menu
+
+        # Search & Indexing (Full-Text Search)
+        files_fulltextsearch
+        files_fulltextsearch_metadata
+        files_fulltextsearch_tika
+        fulltextsearch
+        fulltextsearch_elasticsearch
+
+        # File Management & Storage
+        files_automatedtagging
+        files_retention
+        groupfolders
+        previewgenerator
+        quota_warning
+
+        # Collaboration & Office
+        bookmarks
+        calendar
+        contacts
+        deck
+        drawio
+        forms
+        mail
+        notes
+        richdocuments
+        spreed
+        tasks
+
+        # Media & Viewers
+        cameraraw
+        epubviewer
+        memories
+
+        # UI & Navigation Integrations
+        integration_giphy
+        maps
+        news
+        notify_push
+        side_menu
     )
 
     for app in "${apps[@]}"; do
