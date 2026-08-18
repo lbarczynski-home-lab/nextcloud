@@ -205,6 +205,7 @@ install_applications() {
         drawio
         epubviewer
         recognize
+        custom_menu
     )
 
     for app in "${apps[@]}"; do
