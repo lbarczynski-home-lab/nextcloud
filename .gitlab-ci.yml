@@ -34,24 +34,6 @@ include:
       cloudflare-dns-api-token: $CLOUDFLARE_DNS_API_TOKEN
       delete-existing-container-files: true
 
-  - component: $CI_SERVER_FQDN/home-lab/automations/docker-compose-service-deployment@v2.0.6
-    inputs:
-      vm-hostname: nas.srv.xbhl.intranet
-      vm-ssh-username: $SSH_USER
-      vm-ssh-private-key: $SSH_PRIVATE_KEY
-      service-name: go-vod
-      container-name: nextcloud_go_vod
-      container-location: /share/Container/services/nextcloud-go-vod
-      source-files-path: "src/go-vod"
-      cloudflare-dns-entry-name: nextcloud-go-vod.intranet.xbhl.online
-      cloudflare-zone-id: $CLOUDFLARE_ZONE_ID
-      cloudflare-dns-api-token: $CLOUDFLARE_DNS_API_TOKEN
-      delete-existing-container-files: true
-
-test:go-vod:docker-compose:
-  script:
-    - echo "🔵 Skipping docker-compose test due to lack of NVIDIA GPU in runner environment"
-
 test:nextcloud:docker-compose:
   before_script:
     - docker run --rm -v /tmp:/mnt alpine rm -rf /mnt/nextcloud-test-data
@@ -112,8 +94,3 @@ deploy:nextcloud:update-coturn-dns:
     - 'export DNS_CONTENT=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)'
     - 'echo "Resolved public router IP for Coturn: $DNS_CONTENT"'
     - !reference [.cloudflare-update-script, script]
-
-deploy:go-vod:start-service:
-  needs:
-    - "deploy:go-vod:deploy-files"
-    - "deploy:nextcloud:start-service"
