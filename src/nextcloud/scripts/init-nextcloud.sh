@@ -174,6 +174,7 @@ install_applications() {
     local apps=(
         # Authentication & Security
         admin_audit
+        bruteforcesettings
         files_antivirus
         suspicious_login
         twofactor_nextcloud_notification
@@ -406,6 +407,24 @@ optimize_database() {
     occ_cmd maintenance:repair --include-expensive --no-interaction || true
 }
 
+configure_security() {
+    log_info "Configuring Brute Force & Rate Limit Protection Whitelists..."
+
+    local public_ip
+    public_ip=$(curl -s --max-time 5 https://api.ipify.org || curl -s --max-time 5 https://ifconfig.me || true)
+
+    local whitelist_json='["127.0.0.1","10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"'
+    if [ -n "$public_ip" ]; then
+        log_info "Detected public IP: $public_ip (adding to security whitelist)"
+        whitelist_json="${whitelist_json},\"${public_ip}\""
+    fi
+    whitelist_json="${whitelist_json}]"
+
+    occ_cmd config:system:set ratelimit.protection.enabled --type=boolean --value=true
+    occ_cmd config:app:set bruteforcesettings whitelist --value="$whitelist_json"
+    occ_cmd config:app:set bruteforcesettings apply_allowlist_to_ratelimit --value="1"
+}
+
 ensure_admin_privileges() {
     log_info "Ensuring admin group exists and assigning ${NEXTCLOUD_MAIN_USER}..."
 
@@ -448,6 +467,7 @@ main() {
     configure_ai
     configure_recognize
     configure_smtp
+    configure_security
 
     optimize_database
     ensure_admin_privileges
