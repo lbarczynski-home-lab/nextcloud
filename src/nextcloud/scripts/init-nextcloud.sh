@@ -257,6 +257,7 @@ configure_oidc() {
     occ_cmd config:system:set user_oidc default_token_endpoint_auth_method --value="client_secret_post"
     occ_cmd config:system:set user_oidc enrich_login_id_token_with_userinfo --type=boolean --value=true
     occ_cmd config:app:set user_oidc allow_multiple_user_backends --value="0"
+    occ_cmd config:app:set user_oidc sync_user_details --value="1"
 }
 
 configure_antivirus() {
