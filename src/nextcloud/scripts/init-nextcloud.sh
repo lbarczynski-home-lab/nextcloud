@@ -303,6 +303,9 @@ configure_fulltextsearch() {
     occ_cmd fulltextsearch:configure '{"search_platform":"OCA\\FullTextSearch_Elasticsearch\\Platform\\ElasticSearchPlatform"}' --no-interaction
     occ_cmd fulltextsearch_elasticsearch:configure '{"elastic_host":"http://elasticsearch:9200","elastic_index":"nextcloud"}' --no-interaction
     occ_cmd files_fulltextsearch_tika:configure '{"tika_host":"tika","tika_port":9998}' --no-interaction 2>/dev/null || true
+    occ_cmd files_fulltextsearch:configure '{"files_metadata":"1","files_metadata_max_size":"100"}' --no-interaction 2>/dev/null || true
+    occ_cmd config:app:set files_fulltextsearch_metadata metadata_indexed --value="1"
+    occ_cmd config:app:set files_fulltextsearch_metadata files_metadata_max_size --value="100"
 
     (
         sleep 20
