@@ -344,8 +344,21 @@ configure_ai() {
 }
 
 configure_recognize() {
-    log_info "Configuring Nextcloud Recognize AI models..."
+    log_info "Configuring Nextcloud Recognize AI models and features..."
+
+    occ_cmd config:app:set recognize face_recognition_enabled --value="1"
+    occ_cmd config:app:set recognize object_recognition_enabled --value="1"
+    occ_cmd config:app:set recognize landmark_recognition_enabled --value="1"
+    occ_cmd config:app:set recognize music_recognition_enabled --value="1"
+    occ_cmd config:app:set recognize video_recognition_enabled --value="1"
+
     occ_cmd recognize:download-models --no-interaction 2>/dev/null || true
+
+    (
+        sleep 20
+        log_info "Triggering initial Recognize full library recrawl in background..."
+        occ_cmd recognize:recrawl --no-interaction >/dev/null 2>&1 || true
+    ) &
 }
 
 configure_smtp() {
