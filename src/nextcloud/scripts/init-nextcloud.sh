@@ -220,7 +220,6 @@ install_applications() {
 
         # UI & Navigation Integrations
         integration_giphy
-        maps
         news
         notify_push
         side_menu
@@ -231,11 +230,21 @@ install_applications() {
         occ_cmd app:install "$app" --no-interaction 2>/dev/null || occ_cmd app:enable "$app" --no-interaction 2>/dev/null || true
     done
 
-    occ_cmd app:disable registration --no-interaction 2>/dev/null || true
-    occ_cmd app:disable twofactor_totp --no-interaction 2>/dev/null || true
-    occ_cmd app:disable user_ldap --no-interaction 2>/dev/null || true
-    occ_cmd app:disable cospend --no-interaction 2>/dev/null || true
-    occ_cmd app:disable app_api --no-interaction 2>/dev/null || true
+    local disabled_apps=(
+        app_api
+        cospend
+        dicomviewer
+        external
+        maps
+        registration
+        twofactor_totp
+        user_ldap
+    )
+
+    for app in "${disabled_apps[@]}"; do
+        occ_cmd app:disable "$app" --no-interaction 2>/dev/null || true
+        occ_cmd app:remove "$app" --no-interaction 2>/dev/null || true
+    done
 }
 
 configure_office() {
