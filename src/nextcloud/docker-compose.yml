@@ -85,7 +85,7 @@ services:
   nextcloud_ai_worker:
     build: .
     container_name: nextcloud_ai_worker
-    entrypoint: [ "php", "occ", "background-job:worker", "-t", "0", "OC\\TaskProcessing\\SynchronousBackgroundJob" ]
+    entrypoint: [ "/scripts/continuous-worker.sh", "OC\\TaskProcessing\\SynchronousBackgroundJob", "3600" ]
     env_file:
       - envs/nextcloud.env
       - envs/db.env
@@ -97,6 +97,7 @@ services:
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
+      - scripts:/scripts
     networks:
       - nextcloud_internal
     depends_on:
