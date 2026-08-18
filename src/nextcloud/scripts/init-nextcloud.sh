@@ -316,6 +316,11 @@ configure_talk() {
 
     occ_cmd config:app:set spreed stun_servers --value='["'"$COTURN_HOST"':3478","stun.nextcloud.com:443"]'
     occ_cmd config:app:set spreed turn_servers --value='[{"server":"'"$COTURN_HOST"':3478","secret":"'"$COTURN_SECRET"'","protocols":"udp,tcp"}]'
+
+    if [ -n "${GIPHY_API_KEY:-}" ] && [ "$GIPHY_API_KEY" != "PLACEHOLDER" ]; then
+        log_info "Configuring Giphy API Key for Talk integration..."
+        occ_cmd config:app:set integration_giphy api_key --value="$GIPHY_API_KEY"
+    fi
 }
 
 configure_ai() {
