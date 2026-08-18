@@ -21,7 +21,7 @@ services:
       test: [ "CMD-SHELL", "/scripts/healthcheck.sh" ]
       interval: 5s
       timeout: 5s
-      retries: 15
+      retries: 60
     depends_on:
       postgres_db:
         condition: service_healthy
