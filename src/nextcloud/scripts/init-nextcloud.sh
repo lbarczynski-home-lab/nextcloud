@@ -334,6 +334,8 @@ configure_ai() {
     occ_cmd config:app:set integration_openai url --value="$api_url"
     occ_cmd config:app:set integration_openai api_url --value="$api_url"
     occ_cmd config:app:set integration_openai api_key --value="$api_key"
+    occ_cmd config:app:set integration_openai name --value="OpenWebUI@XBHL.online"
+    occ_cmd config:app:set integration_openai service_name --value="OpenWebUI@XBHL.online"
     occ_cmd config:app:set integration_openai default_completion_model_id --value="$model"
     occ_cmd config:app:set integration_openai model --value="$model"
     occ_cmd config:app:set integration_openai llm_provider_enabled --value="1"
