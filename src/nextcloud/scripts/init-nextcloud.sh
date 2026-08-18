@@ -172,40 +172,57 @@ install_applications() {
     log_info "Installing and enabling required applications..."
 
     local apps=(
-        user_oidc
-        previewgenerator
-        memories
-        calendar
-        contacts
-        tasks
-        notes
-        deck
-        mail
-        spreed
-        files_antivirus
-        fulltextsearch
-        fulltextsearch_elasticsearch
-        files_fulltextsearch
-        files_fulltextsearch_tika
-        integration_openai
-        assistant
-        llm2
-        richdocuments
-        notify_push
-        groupfolders
-        news
-        dicomviewer
-        external
-        maps
-        forms
-        bookmarks
+        # Authentication & Security
         admin_audit
+        files_antivirus
         suspicious_login
         twofactor_nextcloud_notification
-        drawio
-        epubviewer
+        user_oidc
+
+        # AI & Smart Features
+        assistant
+        context_chat
+        integration_openai
+        llm2
         recognize
-        custom_menu
+
+        # Search & Indexing (Full-Text Search)
+        files_fulltextsearch
+        files_fulltextsearch_metadata
+        files_fulltextsearch_tika
+        fulltextsearch
+        fulltextsearch_elasticsearch
+
+        # File Management & Storage
+        files_automatedtagging
+        files_retention
+        groupfolders
+        previewgenerator
+        quota_warning
+
+        # Collaboration & Office
+        bookmarks
+        calendar
+        contacts
+        deck
+        drawio
+        forms
+        mail
+        notes
+        richdocuments
+        spreed
+        tasks
+
+        # Media & Viewers
+        cameraraw
+        epubviewer
+        memories
+
+        # UI & Navigation Integrations
+        integration_giphy
+        news
+        notify_push
+        side_menu
     )
 
     for app in "${apps[@]}"; do
@@ -213,11 +230,21 @@ install_applications() {
         occ_cmd app:install "$app" --no-interaction 2>/dev/null || occ_cmd app:enable "$app" --no-interaction 2>/dev/null || true
     done
 
-    occ_cmd app:disable registration --no-interaction 2>/dev/null || true
-    occ_cmd app:disable twofactor_totp --no-interaction 2>/dev/null || true
-    occ_cmd app:disable user_ldap --no-interaction 2>/dev/null || true
-    occ_cmd app:disable cospend --no-interaction 2>/dev/null || true
-    occ_cmd app:disable app_api --no-interaction 2>/dev/null || true
+    local disabled_apps=(
+        app_api
+        cospend
+        dicomviewer
+        external
+        maps
+        registration
+        twofactor_totp
+        user_ldap
+    )
+
+    for app in "${disabled_apps[@]}"; do
+        occ_cmd app:disable "$app" --no-interaction 2>/dev/null || true
+        occ_cmd app:remove "$app" --no-interaction 2>/dev/null || true
+    done
 }
 
 configure_office() {
