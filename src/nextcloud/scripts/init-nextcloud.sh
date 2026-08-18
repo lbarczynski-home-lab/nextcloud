@@ -230,9 +230,9 @@ configure_office() {
 }
 
 configure_memories() {
-    log_info "Configuring Nextcloud Memories with remote go-vod transcoder (https://nextcloud-go-vod.intranet.xbhl.online)..."
+    log_info "Configuring Nextcloud Memories..."
 
-    occ_cmd config:app:set memories vod.external --value="https://nextcloud-go-vod.intranet.xbhl.online"
+    occ_cmd config:app:delete memories vod.external 2>/dev/null || true
     occ_cmd config:app:set memories vod.ffmpeg --value="/usr/bin/ffmpeg"
     occ_cmd config:app:set memories vod.ffprobe --value="/usr/bin/ffprobe"
     occ_cmd config:app:set memories exiftool --value="/usr/bin/exiftool"

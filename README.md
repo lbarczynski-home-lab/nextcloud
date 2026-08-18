@@ -33,12 +33,6 @@ Enterprise-grade private cloud storage and collaborative office suite with Postg
 - **Isolation & Jails**: `SYS_ADMIN` and `MKNOD` capabilities enabled for fast Linux `bind-mount` chroot document sandboxes.
 - **Ingress**: Dedicated Cloudflare Tunnel (`office.xbhl.online`).
 
-### Remote Video Transcoder (`src/go-vod`)
-- **Go-VOD (`nextcloud-go-vod`)**: Dedicated high-performance HLS video transcoder (`nextcloud-go-vod.intranet.xbhl.online`) hosted on `nas.srv.xbhl.intranet` (`/share/Container/services/nextcloud-go-vod`).
-- **Hardware Acceleration**: NVIDIA NVENC GPU acceleration powered by RTX 3050 (`nvidia` runtime with CUDA/NVENC capabilities).
-- **Zero-Copy Local Storage Mount**: Directly mounts `/share/RemoteStorage/NextCloud` to `/var/nc-data:ro` for instant video streaming without network transfer overhead between Nextcloud storage and the GPU transcoder.
-- **Ingress**: Direct local DNS routing via Traefik reverse proxy (`https://nextcloud-go-vod.intranet.xbhl.online`).
-
 ---
 
 ## On-Demand Maintenance CLI
