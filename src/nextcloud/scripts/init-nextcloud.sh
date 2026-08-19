@@ -395,7 +395,7 @@ configure_smtp() {
 configure_client_push() {
     log_info "Configuring Client Push (notify_push)..."
 
-    occ_cmd notify_push:setup "https://${OVERWRITEHOST}/push" --no-interaction 2>/dev/null || true
+    occ_cmd notify_push:setup "https://${OVERWRITEHOST}/push" --no-interaction
 }
 
 optimize_database() {
@@ -413,10 +413,10 @@ configure_security() {
     local public_ip
     public_ip=$(curl -s --max-time 5 https://api.ipify.org || curl -s --max-time 5 https://ifconfig.me || true)
 
-    local whitelist_json='["127.0.0.1","10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"'
+    local whitelist_json='["127.0.0.1/32","10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"'
     if [ -n "$public_ip" ]; then
         log_info "Detected public IP: $public_ip (adding to security whitelist)"
-        whitelist_json="${whitelist_json},\"${public_ip}\""
+        whitelist_json="${whitelist_json},\"${public_ip}/32\""
     fi
     whitelist_json="${whitelist_json}]"
 
