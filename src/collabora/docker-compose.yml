@@ -1,7 +1,12 @@
 services:
   collabora:
     build: .
+    image: collabora/code:26.04.3.1.1
     container_name: collabora
+    labels:
+      - 'wud.watch=true'
+      - 'wud.tag.include=^\d+\.\d+\.\d+\.\d+\.\d+$$'
+      - "wud.link.template=https://www.collaboraonline.com/code-release-notes/"
     env_file:
       - envs/collabora.env
     environment:
