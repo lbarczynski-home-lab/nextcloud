@@ -1,6 +1,7 @@
 services:
   nextcloud:
     build: .
+    image: nextcloud:34.0.3-apache
     container_name: nextcloud
     env_file:
       - envs/nextcloud.env
@@ -12,6 +13,10 @@ services:
       - envs/smtp.env
       - envs/talk.env
       - envs/retention.env
+    labels:
+      - 'wud.watch=true'
+      - 'wud.tag.include=^\d+\.\d+\.\d+-apache$$'
+      - "wud.link.template=https://github.com/nextcloud/server/releases/tag/v$${major}.$${minor}.$${patch}"
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
