@@ -43,6 +43,8 @@ services:
         condition: service_healthy
       coturn:
         condition: service_healthy
+      imaginary:
+        condition: service_healthy
     restart: unless-stopped
 
   nextcloud_cron:
@@ -228,6 +230,27 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:9998/version" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  imaginary:
+    image: nextcloud/aio-imaginary:20260916_075031
+    container_name: nextcloud_imaginary
+    command: -concurrency 50 -enable-url-source -http-read-timeout 180 -http-write-timeout 180
+    cap_add:
+      - SYS_NICE
+    labels:
+      - 'wud.watch=true'
+      - 'wud.display.name=Imaginary (Nextcloud)'
+      - 'wud.display.icon=mdi:image-filter-hdr'
+      - 'wud.tag.include=^\d{8}_\d{6}$$'
+      - "wud.link.template=https://hub.docker.com/layers/nextcloud/aio-imaginary/$${raw}"
+    networks:
+      - nextcloud_internal
+    healthcheck:
+      test: [ "CMD-SHELL", "/healthcheck.sh" ]
       interval: 5s
       timeout: 5s
       retries: 10
