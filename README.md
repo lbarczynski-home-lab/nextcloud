@@ -14,6 +14,7 @@ Self-hosted enterprise private cloud storage and collaborative office suite powe
 - **AI Integrations**: Nextcloud Assistant (LLM integration) and Recognize for local machine learning photo classification and facial recognition.
 - **Security & Antivirus**: ClamAV daemon for automated signature updates and streaming file scan on upload.
 - **High Performance Push**: `notify_push` backend for instant desktop and mobile WebSocket sync.
+- **High-Performance Image Previews**: Dedicated Imaginary microservice powered by `libvips` for accelerated on-demand photo and thumbnail generation in Nextcloud Memories.
 - **Single Sign-On (SSO)**: OpenID Connect (OIDC) integration.
 - **Dedicated Background Workers**:
   - `cron`: System cron runner for background tasks.

@@ -134,14 +134,18 @@ configure_caching() {
 }
 
 configure_previews() {
-    log_info "Configuring preview providers and dimensions..."
+    log_info "Configuring preview providers, Imaginary service, and dimensions..."
 
     occ_cmd config:system:set enable_previews --type=boolean --value=true
+    occ_cmd config:system:set preview_imaginary_url --value="http://imaginary:9000"
+    occ_cmd config:system:set preview_concurrency_all --type=integer --value=8
+    occ_cmd config:system:set preview_concurrency_new --type=integer --value=4
     occ_cmd config:system:set preview_max_x --type=integer --value=2048
     occ_cmd config:system:set preview_max_y --type=integer --value=2048
     occ_cmd config:system:set preview_max_filesize_image --type=integer --value=50
 
     local providers=(
+        "OC\Preview\Imaginary"
         "OC\Preview\PNG"
         "OC\Preview\JPEG"
         "OC\Preview\GIF"
