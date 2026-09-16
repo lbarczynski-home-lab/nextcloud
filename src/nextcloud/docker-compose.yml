@@ -149,7 +149,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:8.10.0
+    image: redis:8.10.1
     container_name: nextcloud_redis
     labels:
       - 'wud.watch=true'
@@ -194,7 +194,7 @@ services:
     restart: unless-stopped
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.1
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.4
     container_name: nextcloud_elasticsearch
     labels:
       - 'wud.watch=true'
@@ -257,7 +257,7 @@ services:
     restart: unless-stopped
 
   coturn:
-    image: coturn/coturn:4.17.2-alpine
+    image: coturn/coturn:4.18.0-alpine
     container_name: nextcloud_coturn
     labels:
       - 'wud.watch=true'
@@ -310,7 +310,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.8.2
+    image: cloudflare/cloudflared:2026.9.1
     container_name: nextcloud_cloudflared
     profiles: [ "production" ]
     command: tunnel run
