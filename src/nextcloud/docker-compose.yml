@@ -1,7 +1,7 @@
 services:
   nextcloud:
     build: .
-    image: nextcloud:34.0.4-apache
+    image: nextcloud:35.0.0-apache
     container_name: nextcloud
     env_file:
       - envs/nextcloud.env

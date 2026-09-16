@@ -1,4 +1,4 @@
-FROM nextcloud:34.0.4-apache
+FROM nextcloud:35.0.0-apache
 
 # Install required system tools and libraries for multimedia processing and background workers:
 # - ffmpeg: Video preview generation and video transcoding (used by Memories app)

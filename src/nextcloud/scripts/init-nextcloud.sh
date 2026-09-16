@@ -250,6 +250,13 @@ install_applications() {
         occ_cmd app:disable "$app" --no-interaction 2>/dev/null || true
         occ_cmd app:remove "$app" --no-interaction 2>/dev/null || true
     done
+
+    log_info "Updating all installed applications to latest compatible versions on startup..."
+    if occ_cmd app:update --all --no-interaction; then
+        log_info "All applications updated successfully during startup."
+    else
+        log_error "Failed to update some applications during startup."
+    fi
 }
 
 configure_office() {
