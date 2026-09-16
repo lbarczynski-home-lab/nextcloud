@@ -18,7 +18,7 @@ Self-hosted enterprise private cloud storage and collaborative office suite powe
 - **Dedicated Background Workers**:
   - `cron`: System cron runner for background tasks.
   - `ai_worker`: Dedicated task processor for near-instant AI assistant responses.
-  - `maintenance_worker`: Automated scheduled preview generation, search indexing, and database optimization.
+  - `maintenance_worker`: Automated scheduled preview generation, search indexing, application autoupdates, and database optimization.
 
 ---
 
