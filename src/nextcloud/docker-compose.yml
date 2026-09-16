@@ -246,7 +246,7 @@ services:
       - 'wud.display.name=Imaginary (Nextcloud)'
       - 'wud.display.icon=mdi:image-filter-hdr'
       - 'wud.tag.include=^\d{8}_\d{6}$$'
-      - "wud.link.template=https://github.com/nextcloud/all-in-one"
+      - "wud.link.template=https://hub.docker.com/r/nextcloud/aio-imaginary/tags"
     networks:
       - nextcloud_internal
     healthcheck:
