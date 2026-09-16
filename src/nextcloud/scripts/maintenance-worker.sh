@@ -64,11 +64,22 @@ run_fulltextsearch_sync() {
     occ_cmd fulltextsearch:index --no-interaction >/dev/null 2>&1 || true
 }
 
+run_app_updates() {
+    log_info "Checking and updating Nextcloud applications..."
+    if occ_cmd app:update --all --no-interaction; then
+        log_info "Nextcloud applications update completed successfully."
+    else
+        log_error "Failed to update one or more Nextcloud applications."
+    fi
+}
+
 run_daily_maintenance() {
-    log_info "Executing periodic database optimization, file cleanup, and repair..."
+    log_info "Executing periodic app updates, database optimization, file cleanup, and repair..."
+    run_app_updates
     occ_cmd recognize:recrawl --no-interaction >/dev/null 2>&1 || true
     occ_cmd files:cleanup --no-interaction >/dev/null 2>&1 || true
     occ_cmd db:optimize --no-interaction >/dev/null 2>&1 || true
+    occ_cmd db:add-missing-indices --no-interaction >/dev/null 2>&1 || true
     occ_cmd maintenance:repair --include-expensive --no-interaction >/dev/null 2>&1 || true
 }
 
@@ -94,7 +105,7 @@ main() {
         exit 0
     fi
 
-    log_info "Maintenance worker started (preview: ${CYCLE_INTERVAL_SECONDS}s, search sync: every ${FTS_SYNC_INTERVAL_CYCLES} cycles, db cleanup: every ${DAILY_MAINTENANCE_CYCLES} cycles)"
+    log_info "Maintenance worker started (preview: ${CYCLE_INTERVAL_SECONDS}s, search sync: every ${FTS_SYNC_INTERVAL_CYCLES} cycles, daily maintenance & app updates: every ${DAILY_MAINTENANCE_CYCLES} cycles)"
 
     local fts_counter=0
     local daily_counter=0
