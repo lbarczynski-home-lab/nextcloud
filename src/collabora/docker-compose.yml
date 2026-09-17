@@ -1,7 +1,7 @@
 services:
   collabora:
     build: .
-    image: collabora/code:26.04.3.1.1
+    image: collabora/code:26.04.4.1.1
     container_name: collabora
     labels:
       - 'wud.watch=true'
@@ -29,11 +29,11 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.8.2
+    image: cloudflare/cloudflared:2026.9.1
     container_name: collabora_cloudflared
     labels:
       - 'wud.watch=true'
-      - 'wud.display.name=Cloudflared (Collabora)'
+      - 'wud.display.name=Cloudflared'
       - 'wud.display.icon=si:cloudflare'
       - 'wud.tag.include=^\d{4}\.\d+\.\d+$$'
       - "wud.link.template=https://github.com/cloudflare/cloudflared/releases/tag/$${major}.$${minor}.$${patch}"

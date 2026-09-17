@@ -250,6 +250,8 @@ install_applications() {
         occ_cmd app:disable "$app" --no-interaction 2>/dev/null || true
         occ_cmd app:remove "$app" --no-interaction 2>/dev/null || true
     done
+
+    occ_cmd app:update --all --no-interaction >/dev/null 2>&1 || true
 }
 
 configure_office() {

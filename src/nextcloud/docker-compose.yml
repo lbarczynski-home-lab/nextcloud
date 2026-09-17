@@ -1,7 +1,7 @@
 services:
   nextcloud:
     build: .
-    image: nextcloud:34.0.4-apache
+    image: nextcloud:35.0.0-apache
     container_name: nextcloud
     env_file:
       - envs/nextcloud.env
@@ -120,7 +120,7 @@ services:
     container_name: nextcloud_postgres
     labels:
       - 'wud.watch=true'
-      - 'wud.display.name=PostgreSQL (Nextcloud)'
+      - 'wud.display.name=PostgreSQL'
       - 'wud.display.icon=si:postgresql'
       - 'wud.tag.include=^18\.\d+$$'
       - "wud.link.template=https://www.postgresql.org/docs/release/$${major}.$${minor}/"
@@ -149,11 +149,11 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:8.10.0
+    image: redis:8.10.1
     container_name: nextcloud_redis
     labels:
       - 'wud.watch=true'
-      - 'wud.display.name=Redis (Nextcloud)'
+      - 'wud.display.name=Redis'
       - 'wud.display.icon=si:redis'
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
       - "wud.link.template=https://github.com/redis/redis/releases/tag/$${major}.$${minor}.$${patch}"
@@ -176,7 +176,7 @@ services:
     container_name: nextcloud_clamav
     labels:
       - 'wud.watch=true'
-      - 'wud.display.name=ClamAV (Nextcloud)'
+      - 'wud.display.name=ClamAV'
       - 'wud.display.icon=mdi:shield-check'
       - 'wud.tag.include=^\d+\.\d+\.\d+_base$$'
       - "wud.link.template=https://github.com/Cisco-Talos/clamav/releases/tag/clamav-$${major}.$${minor}.$${patch}"
@@ -194,11 +194,11 @@ services:
     restart: unless-stopped
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.1
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.4
     container_name: nextcloud_elasticsearch
     labels:
       - 'wud.watch=true'
-      - 'wud.display.name=Elasticsearch (Nextcloud)'
+      - 'wud.display.name=Elasticsearch'
       - 'wud.display.icon=si:elasticsearch'
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
       - "wud.link.template=https://www.elastic.co/guide/en/elasticsearch/reference/current/release-notes-$${major}-$${minor}-$${patch}.html"
@@ -222,7 +222,7 @@ services:
     container_name: nextcloud_tika
     labels:
       - 'wud.watch=true'
-      - 'wud.display.name=Apache Tika (Nextcloud)'
+      - 'wud.display.name=Apache Tika'
       - 'wud.display.icon=si:apache'
       - 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-full$$'
       - "wud.link.template=https://github.com/apache/tika/releases"
@@ -243,7 +243,7 @@ services:
       - SYS_NICE
     labels:
       - 'wud.watch=true'
-      - 'wud.display.name=Imaginary (Nextcloud)'
+      - 'wud.display.name=Imaginary'
       - 'wud.display.icon=mdi:image-filter-hdr'
       - 'wud.tag.include=^\d{8}_\d{6}$$'
       - "wud.link.template=https://hub.docker.com/layers/nextcloud/aio-imaginary/$${raw}"
@@ -257,11 +257,11 @@ services:
     restart: unless-stopped
 
   coturn:
-    image: coturn/coturn:4.17.2-alpine
+    image: coturn/coturn:4.18.0-alpine
     container_name: nextcloud_coturn
     labels:
       - 'wud.watch=true'
-      - 'wud.display.name=Coturn (Nextcloud)'
+      - 'wud.display.name=Coturn'
       - 'wud.display.icon=mdi:phone-in-talk'
       - 'wud.tag.include=^\d+\.\d+\.\d+-alpine$$'
       - "wud.link.template=https://github.com/coturn/coturn/releases/tag/$${major}.$${minor}.$${patch}"
@@ -287,7 +287,7 @@ services:
     container_name: nextcloud_notify_push
     labels:
       - 'wud.watch=true'
-      - 'wud.display.name=Notify Push (Nextcloud)'
+      - 'wud.display.name=Notify Push'
       - 'wud.display.icon=si:nextcloud'
       - 'wud.tag.include=^v\d+\.\d+\.\d+$$'
       - "wud.link.template=https://github.com/nextcloud/notify_push/releases/tag/v$${major}.$${minor}.$${patch}"
@@ -310,13 +310,13 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.8.2
+    image: cloudflare/cloudflared:2026.9.1
     container_name: nextcloud_cloudflared
     profiles: [ "production" ]
     command: tunnel run
     labels:
       - 'wud.watch=true'
-      - 'wud.display.name=Cloudflared (Nextcloud)'
+      - 'wud.display.name=Cloudflared'
       - 'wud.display.icon=si:cloudflare'
       - 'wud.tag.include=^\d{4}\.\d+\.\d+$$'
       - "wud.link.template=https://github.com/cloudflare/cloudflared/releases/tag/$${major}.$${minor}.$${patch}"
