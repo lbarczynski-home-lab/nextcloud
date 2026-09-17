@@ -30,6 +30,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 60
+      start_period: 60s
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -67,6 +68,10 @@ services:
     depends_on:
       nextcloud:
         condition: service_healthy
+      postgres_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   nextcloud_maintenance_worker:
@@ -90,6 +95,10 @@ services:
     depends_on:
       nextcloud:
         condition: service_healthy
+      postgres_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   nextcloud_ai_worker:
@@ -112,6 +121,10 @@ services:
       - nextcloud_internal
     depends_on:
       nextcloud:
+        condition: service_healthy
+      postgres_db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -145,7 +158,8 @@ services:
       test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} || exit 1" ]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
 
   redis:
@@ -168,7 +182,8 @@ services:
       test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_HOST_PASSWORD\" ping | grep PONG || exit 1" ]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   clamav:
@@ -191,6 +206,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
+      start_period: 90s
     restart: unless-stopped
 
   elasticsearch:
@@ -214,7 +230,8 @@ services:
       test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status' || exit 1" ]
       interval: 5s
       timeout: 5s
-      retries: 15
+      retries: 20
+      start_period: 60s
     restart: unless-stopped
 
   tika:
@@ -232,7 +249,8 @@ services:
       test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:9998/version" ]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 15
+      start_period: 30s
     restart: unless-stopped
 
   imaginary:
@@ -254,6 +272,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   coturn:
@@ -279,7 +298,8 @@ services:
       test: [ "CMD-SHELL", "turnutils_stunclient 127.0.0.1 3478 || exit 1" ]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   notify_push:
