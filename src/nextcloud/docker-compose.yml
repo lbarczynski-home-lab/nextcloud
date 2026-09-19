@@ -104,7 +104,7 @@ services:
   nextcloud_ai_worker:
     build: .
     container_name: nextcloud_ai_worker
-    entrypoint: [ "/scripts/continuous-worker.sh", "taskprocessing", "3600" ]
+    entrypoint: [ "/scripts/continuous-worker.sh", "3600" ]
     env_file:
       - envs/nextcloud.env
       - envs/db.env

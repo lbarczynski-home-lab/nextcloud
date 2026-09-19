@@ -3,6 +3,7 @@ set -eo pipefail
 
 readonly OCC_SCRIPT="/var/www/html/occ"
 readonly CONFIG_FILE="/var/www/html/config/config.php"
+readonly TIMEOUT="${1:-3600}"
 
 log_info() {
     echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $*"
@@ -33,38 +34,12 @@ is_nextcloud_ready() {
     [ -n "$installed" ] && [ -n "$maintenance" ]
 }
 
-MODE="taskprocessing"
-TIMEOUT="3600"
-JOB_CLASS=""
-
-if [ -n "$1" ]; then
-    if [[ "$1" =~ ^[0-9]+$ ]]; then
-        TIMEOUT="$1"
-    elif [ "$1" = "taskprocessing" ] || [ "$1" = "taskprocessing:worker" ] || [ "$1" = "OC\\TaskProcessing\\SynchronousBackgroundJob" ]; then
-        MODE="taskprocessing"
-        TIMEOUT="${2:-3600}"
-    else
-        MODE="background-job"
-        JOB_CLASS="$1"
-        TIMEOUT="${2:-3600}"
-    fi
-fi
-
-if [ "$MODE" = "taskprocessing" ]; then
-    log_info "Task processing worker started (command: taskprocessing:worker, timeout: ${TIMEOUT}s)"
-else
-    log_info "Background job worker started (class: ${JOB_CLASS}, timeout: ${TIMEOUT}s)"
-fi
-
+log_info "Task processing worker started (timeout: ${TIMEOUT}s)"
 trap 'log_info "Termination signal received. Exiting..."; exit 0' SIGTERM SIGINT
 
 while true; do
     if is_nextcloud_ready; then
-        if [ "$MODE" = "taskprocessing" ]; then
-            occ_cmd taskprocessing:worker -v -t "$TIMEOUT" || true
-        else
-            occ_cmd background-job:worker -t "$TIMEOUT" "$JOB_CLASS" || true
-        fi
+        occ_cmd taskprocessing:worker -v -t "$TIMEOUT" || true
         log_info "Worker finished or timed out, restarting in 2 seconds..."
         sleep 2
     else
