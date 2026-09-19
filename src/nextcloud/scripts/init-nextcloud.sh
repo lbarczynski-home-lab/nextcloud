@@ -231,6 +231,21 @@ install_applications() {
         side_menu
     )
 
+    log_info "Configuring app version compatibility overwrite whitelist..."
+    local overwrite_apps=(
+        previewgenerator
+        context_chat
+        drawio
+        files_fulltextsearch_metadata
+        news
+        quota_warning
+    )
+    local o_idx=0
+    for app in "${overwrite_apps[@]}"; do
+        occ_cmd config:system:set app_install_overwrite "$o_idx" --value="$app"
+        o_idx=$((o_idx + 1))
+    done
+
     for app in "${apps[@]}"; do
         log_info " - Ensuring app is active: $app"
         occ_cmd app:install "$app" --no-interaction 2>/dev/null || occ_cmd app:enable "$app" --no-interaction 2>/dev/null || true
@@ -240,6 +255,7 @@ install_applications() {
         app_api
         cospend
         dicomviewer
+        encryption
         external
         registration
         twofactor_totp
