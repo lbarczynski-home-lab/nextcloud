@@ -91,6 +91,17 @@ setup:generate-build-artifacts:
       - .collabora_generated_sources/
       - $BUILD_ARTIFACTS_DIR/
 
+verify:nextcloud:config-reconciliation:
+  stage: verify
+  extends: .ssh-job-base:nextcloud
+  needs:
+    - "deploy:nextcloud:start-service"
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  script:
+    - echo "🔵 Re-running configuration reconciliation to verify the deployment..."
+    - $CMD_PREFIX "sh -lc 'docker exec nextcloud /scripts/configure-nextcloud.sh'"
+
 deploy:nextcloud:update-coturn-dns:
   stage: deploy
   image: alpine:3.24.1

@@ -67,15 +67,12 @@ reconcile_applications() {
 
         # AI & Smart Features
         assistant
-        context_chat
         integration_openai
-        llm2
         recognize
 
         # Search & Indexing (Full-Text Search)
         files_fulltextsearch
         files_fulltextsearch_metadata
-        files_fulltextsearch_tika
         fulltextsearch
         fulltextsearch_elasticsearch
 
@@ -100,7 +97,6 @@ reconcile_applications() {
         tasks
 
         # Media & Viewers
-        cameraraw
         epubviewer
         memories
         duplicatefinder
@@ -115,8 +111,16 @@ reconcile_applications() {
 
     # Two-factor auth is handled upstream by Authelia (LDAP-backed MFA) — no
     # 2FA method may be selectable from within Nextcloud itself.
+    #
+    # context_chat: its bundled Search command has a method signature
+    # incompatible with the Symfony Console version shipped in NC35, which
+    # crashes every single `occ` invocation (not just this app's own
+    # commands) the moment it's enabled — not just "unofficially supported",
+    # actively fatal. Do not move this back to desired_apps without
+    # confirming upstream has fixed that incompatibility.
     local unwanted_apps=(
         app_api
+        context_chat
         cospend
         dicomviewer
         encryption
@@ -131,7 +135,6 @@ reconcile_applications() {
     log_info "Configuring app version compatibility overwrite whitelist (temporary, pending NC35 app compat)..."
     local overwrite_apps=(
         previewgenerator
-        context_chat
         drawio
         files_fulltextsearch_metadata
         news
@@ -147,10 +150,13 @@ reconcile_applications() {
     local present_ids
     present_ids=$(occ_cmd app:list --output=json 2>/dev/null | jq -r '(.enabled // {} | keys) + (.disabled // {} | keys) | .[]')
 
+    local failed_installs=()
     for app in "${desired_apps[@]}"; do
         if ! list_contains "$app" "$present_ids"; then
             log_info " - Installing missing app: $app"
-            occ_cmd app:install "$app" --no-interaction 2>/dev/null || true
+            if ! occ_cmd app:install "$app" --no-interaction; then
+                failed_installs+=("$app")
+            fi
         fi
     done
 
@@ -158,9 +164,16 @@ reconcile_applications() {
         if list_contains "$app" "$present_ids"; then
             log_info " - Removing unwanted app: $app"
             occ_cmd app:disable "$app" --no-interaction 2>/dev/null || true
+            # app:remove fails permanently (and harmlessly) for shipped/core
+            # apps, which occ only ever allows disabling, not removing.
             occ_cmd app:remove "$app" --no-interaction 2>/dev/null || true
         fi
     done
+
+    if [ "${#failed_installs[@]}" -gt 0 ]; then
+        log_error "Failed to install app(s): ${failed_installs[*]}"
+        return 1
+    fi
 }
 
 configure_recognize_defaults() {
@@ -428,15 +441,17 @@ ensure_admin_privileges() {
 main() {
     log_info "Reconciling Nextcloud runtime configuration..."
 
+    local had_failures=0
+
     validate_environment
-    reconcile_applications
+    reconcile_applications || had_failures=1
     configure_system
     configure_caching
     configure_previews
     configure_office
     configure_memories
     configure_recognize_defaults
-    configure_oidc || log_error "OIDC provider configuration failed — will retry on next restart."
+    configure_oidc || { log_error "OIDC provider configuration failed — will retry on next restart."; had_failures=1; }
     configure_antivirus
     configure_fulltextsearch_backend
     configure_talk
@@ -445,6 +460,11 @@ main() {
     configure_client_push
     configure_security_baseline
     ensure_admin_privileges
+
+    if [ "$had_failures" -ne 0 ]; then
+        log_error "Nextcloud runtime configuration reconciled with failures — see errors above."
+        exit 1
+    fi
 
     log_info "Nextcloud runtime configuration reconciled."
 }
