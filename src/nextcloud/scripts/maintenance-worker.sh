@@ -82,11 +82,15 @@ run_memories_indexing() {
     execute_maintenance_step "Memories metadata indexing" occ_cmd memories:index
 }
 
-run_recognize_ai() {
-    log_info "Executing Recognize AI models and classification..."
-    execute_maintenance_step "Recognize download models" occ_cmd recognize:download-models --no-interaction
+run_recognize_classification() {
+    log_info "Executing Recognize AI classification..."
     execute_maintenance_step "Recognize classify" occ_cmd recognize:classify --no-interaction
     execute_maintenance_step "Recognize cluster faces" occ_cmd recognize:cluster-faces --no-interaction
+}
+
+run_recognize_model_update() {
+    log_info "Checking for updated Recognize AI models..."
+    execute_maintenance_step "Recognize download models" occ_cmd recognize:download-models --no-interaction
 }
 
 run_fulltextsearch_sync() {
@@ -112,7 +116,7 @@ run_security_whitelist_refresh() {
 run_hourly_tasks() {
     log_info "Executing hourly maintenance tasks (search sync, AI recognition, security whitelist)..."
     run_fulltextsearch_sync
-    run_recognize_ai
+    run_recognize_classification
     run_security_whitelist_refresh
 }
 
@@ -130,6 +134,7 @@ run_app_updates() {
 run_daily_maintenance() {
     log_info "Executing daily app updates, database optimization, file cleanup, and repair..."
     run_app_updates
+    run_recognize_model_update
     execute_maintenance_step "Recognize recrawl" occ_cmd recognize:recrawl --no-interaction
     execute_maintenance_step "Files cleanup" occ_cmd files:cleanup --no-interaction
     execute_maintenance_step "Database optimization" occ_cmd db:optimize --no-interaction
