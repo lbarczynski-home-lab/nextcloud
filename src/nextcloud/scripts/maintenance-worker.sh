@@ -20,6 +20,24 @@ occ_cmd() {
     runuser -u www-data -- php "$OCC_SCRIPT" "$@"
 }
 
+execute_maintenance_step() {
+    local desc="$1"
+    shift
+    local output
+    local exit_code=0
+
+    if output=$("$@" 2>&1); then
+        return 0
+    else
+        exit_code=$?
+        log_error "${desc} failed (exit code: ${exit_code})"
+        if [ -n "$output" ]; then
+            printf '%s\n' "$output" >&2
+        fi
+        return 0
+    fi
+}
+
 is_nextcloud_ready() {
     if [ ! -f "$OCC_SCRIPT" ] || [ ! -f "$CONFIG_FILE" ]; then
         return 1
@@ -39,49 +57,51 @@ is_nextcloud_ready() {
 
 run_system_cron() {
     log_info "Executing Nextcloud system cron..."
-    runuser -u www-data -- php "$CRON_SCRIPT" >/dev/null 2>&1 || true
+    execute_maintenance_step "Nextcloud system cron" runuser -u www-data -- php "$CRON_SCRIPT"
 }
 
 run_preview_generation() {
     log_info "Executing background preview pre-generation..."
-    occ_cmd preview:pre-generate >/dev/null 2>&1 || true
+    execute_maintenance_step "Background preview pre-generation" occ_cmd preview:pre-generate
 }
 
 run_memories_indexing() {
     log_info "Executing Memories metadata indexing..."
-    occ_cmd memories:index >/dev/null 2>&1 || true
+    execute_maintenance_step "Memories metadata indexing" occ_cmd memories:index
 }
 
 run_recognize_ai() {
     log_info "Executing Recognize AI models and classification..."
-    occ_cmd recognize:download-models --no-interaction >/dev/null 2>&1 || true
-    occ_cmd recognize:classify --no-interaction >/dev/null 2>&1 || true
-    occ_cmd recognize:cluster-faces --no-interaction >/dev/null 2>&1 || true
+    execute_maintenance_step "Recognize download models" occ_cmd recognize:download-models --no-interaction
+    execute_maintenance_step "Recognize classify" occ_cmd recognize:classify --no-interaction
+    execute_maintenance_step "Recognize cluster faces" occ_cmd recognize:cluster-faces --no-interaction
 }
 
 run_fulltextsearch_sync() {
     log_info "Executing periodic full-text search indexing..."
-    occ_cmd fulltextsearch:index --no-interaction >/dev/null 2>&1 || true
+    execute_maintenance_step "Full-text search indexing" occ_cmd fulltextsearch:index --no-interaction
 }
 
 run_app_updates() {
     log_info "Checking and updating Nextcloud applications..."
+    local exit_code=0
     if occ_cmd app:update --all --no-interaction; then
         log_info "Nextcloud applications update completed successfully."
     else
-        log_error "Failed to update one or more Nextcloud applications."
+        exit_code=$?
+        log_error "Failed to update one or more Nextcloud applications (exit code: ${exit_code})."
     fi
 }
 
 run_daily_maintenance() {
     log_info "Executing periodic app updates, database optimization, file cleanup, and repair..."
     run_app_updates
-    occ_cmd recognize:recrawl --no-interaction >/dev/null 2>&1 || true
-    occ_cmd files:cleanup --no-interaction >/dev/null 2>&1 || true
-    occ_cmd db:optimize --no-interaction >/dev/null 2>&1 || true
-    occ_cmd db:add-missing-indices --no-interaction >/dev/null 2>&1 || true
-    occ_cmd maintenance:repair --include-expensive --no-interaction >/dev/null 2>&1 || true
-    occ_cmd duplicates:find-all --no-interaction >/dev/nugll 2>&1 || true
+    execute_maintenance_step "Recognize recrawl" occ_cmd recognize:recrawl --no-interaction
+    execute_maintenance_step "Files cleanup" occ_cmd files:cleanup --no-interaction
+    execute_maintenance_step "Database optimization" occ_cmd db:optimize --no-interaction
+    execute_maintenance_step "Database add missing indices" occ_cmd db:add-missing-indices --no-interaction
+    execute_maintenance_step "Maintenance repair" occ_cmd maintenance:repair --include-expensive --no-interaction
+    execute_maintenance_step "Find duplicate files" occ_cmd duplicates:find-all --no-interaction
 }
 
 run_all_maintenance() {
@@ -89,11 +109,11 @@ run_all_maintenance() {
     run_system_cron
     run_preview_generation
     run_memories_indexing
-    occ_cmd recognize:recrawl --no-interaction >/dev/null 2>&1 || true
+    execute_maintenance_step "Recognize recrawl" occ_cmd recognize:recrawl --no-interaction
     run_recognize_ai
     run_fulltextsearch_sync
     run_daily_maintenance
-    log_info "Full maintenance suite completed successfully."
+    log_info "Full maintenance suite completed."
 }
 
 main() {
