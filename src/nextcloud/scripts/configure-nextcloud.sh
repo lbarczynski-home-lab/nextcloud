@@ -220,6 +220,10 @@ configure_context_chat_stack() {
             return 1
         fi
     fi
+
+    # Without this, context_chat never automatically indexes files into the
+    # backend's vector database — queries would have nothing to search.
+    occ_cmd config:app:set context_chat auto_indexing --value='true' --type=string 2>/dev/null || true
 }
 
 configure_recognize_defaults() {
