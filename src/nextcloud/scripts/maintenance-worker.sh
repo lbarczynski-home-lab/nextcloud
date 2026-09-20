@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common/logger.sh"
 source "$SCRIPT_DIR/common/occ.sh"
 source "$SCRIPT_DIR/common/readiness.sh"
+source "$SCRIPT_DIR/common/security.sh"
 
 readonly CYCLE_INTERVAL_SECONDS=300
 readonly HOURLY_INTERVAL_CYCLES=12
@@ -100,17 +101,7 @@ run_fulltextsearch_sync() {
 
 run_security_whitelist_refresh() {
     log_info "Refreshing bruteforce/rate-limit IP whitelist (covers dynamic public IP changes)..."
-
-    local public_ip
-    public_ip=$(curl -s --max-time 5 https://api.ipify.org || curl -s --max-time 5 https://ifconfig.me || true)
-
-    local whitelist_json='["127.0.0.1/32","10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"'
-    if [ -n "$public_ip" ]; then
-        whitelist_json="${whitelist_json},\"${public_ip}/32\""
-    fi
-    whitelist_json="${whitelist_json}]"
-
-    execute_maintenance_step "Bruteforce whitelist refresh" occ_cmd config:app:set bruteforcesettings whitelist --value="$whitelist_json"
+    execute_maintenance_step "Bruteforce whitelist refresh" refresh_security_whitelist
 }
 
 run_hourly_tasks() {

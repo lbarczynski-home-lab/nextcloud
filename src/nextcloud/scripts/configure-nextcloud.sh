@@ -20,6 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common/logger.sh"
 source "$SCRIPT_DIR/common/occ.sh"
 source "$SCRIPT_DIR/common/config.sh"
+source "$SCRIPT_DIR/common/security.sh"
 
 validate_environment() {
     log_info "Validating required environment variables..."
@@ -412,22 +413,12 @@ configure_client_push() {
     occ_cmd notify_push:setup "https://${OVERWRITEHOST}/push" --no-interaction
 }
 
-refresh_security_whitelist() {
-    log_info "Refreshing Brute Force & Rate Limit Protection Whitelists..."
-
-    local public_ip
-    public_ip=$(curl -s --max-time 5 https://api.ipify.org || curl -s --max-time 5 https://ifconfig.me || true)
-
-    local whitelist_json='["127.0.0.1/32","10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"'
-    if [ -n "$public_ip" ]; then
-        log_info "Detected public IP: $public_ip (adding to security whitelist)"
-        whitelist_json="${whitelist_json},\"${public_ip}/32\""
-    fi
-    whitelist_json="${whitelist_json}]"
+configure_security_baseline() {
+    log_info "Configuring Brute Force & Rate Limit Protection..."
 
     occ_cmd config:system:set ratelimit.protection.enabled --type=boolean --value=true
-    occ_cmd config:app:set bruteforcesettings whitelist --value="$whitelist_json"
     occ_cmd config:app:set bruteforcesettings apply_allowlist_to_ratelimit --value="1"
+    refresh_security_whitelist
 }
 
 ensure_admin_privileges() {
@@ -468,7 +459,7 @@ main() {
     configure_ai
     configure_smtp
     configure_client_push
-    refresh_security_whitelist
+    configure_security_baseline
     ensure_admin_privileges
 
     log_info "Nextcloud runtime configuration reconciled."
