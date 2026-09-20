@@ -67,7 +67,6 @@ reconcile_applications() {
 
         # AI & Smart Features
         assistant
-        context_chat
         integration_openai
         llm2
         recognize
@@ -115,8 +114,16 @@ reconcile_applications() {
 
     # Two-factor auth is handled upstream by Authelia (LDAP-backed MFA) — no
     # 2FA method may be selectable from within Nextcloud itself.
+    #
+    # context_chat: its bundled Search command has a method signature
+    # incompatible with the Symfony Console version shipped in NC35, which
+    # crashes every single `occ` invocation (not just this app's own
+    # commands) the moment it's enabled — not just "unofficially supported",
+    # actively fatal. Do not move this back to desired_apps without
+    # confirming upstream has fixed that incompatibility.
     local unwanted_apps=(
         app_api
+        context_chat
         cospend
         dicomviewer
         encryption
@@ -131,7 +138,6 @@ reconcile_applications() {
     log_info "Configuring app version compatibility overwrite whitelist (temporary, pending NC35 app compat)..."
     local overwrite_apps=(
         previewgenerator
-        context_chat
         drawio
         files_fulltextsearch_metadata
         news
