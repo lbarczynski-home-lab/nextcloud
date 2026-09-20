@@ -19,6 +19,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY config/custom.ini /usr/local/etc/php/conf.d/zz-custom.ini
+# Debian's default MaxRequestWorkers (150) assumes a busy multi-tenant
+# server; this VM is a shared homelab host serving ~5 users, so cap
+# concurrent Apache/PHP processes to keep worst-case memory bounded and
+# make the nextcloud container's mem_limit (docker-compose.yml) meaningful.
+COPY config/mpm_prefork.conf /etc/apache2/mods-available/mpm_prefork.conf
 COPY scripts/entrypoint-wrapper.sh /entrypoint-wrapper.sh
 RUN chmod +x /entrypoint-wrapper.sh && \
     a2enmod headers env proxy proxy_http proxy_wstunnel && \
