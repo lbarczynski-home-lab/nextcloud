@@ -1,7 +1,7 @@
 services:
   collabora:
     build: .
-    image: collabora/code:26.04.3.1.1
+    image: collabora/code:26.04.4.1.1
     container_name: collabora
     labels:
       - 'wud.watch=true'
