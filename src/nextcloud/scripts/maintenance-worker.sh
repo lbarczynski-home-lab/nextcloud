@@ -81,6 +81,7 @@ run_daily_maintenance() {
     occ_cmd db:optimize --no-interaction >/dev/null 2>&1 || true
     occ_cmd db:add-missing-indices --no-interaction >/dev/null 2>&1 || true
     occ_cmd maintenance:repair --include-expensive --no-interaction >/dev/null 2>&1 || true
+    occ_cmd duplicates:find-all --no-interaction >/dev/nugll 2>&1 || true
 }
 
 run_all_maintenance() {
