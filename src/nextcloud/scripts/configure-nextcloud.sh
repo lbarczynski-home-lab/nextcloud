@@ -66,11 +66,22 @@ reconcile_applications() {
         user_oidc
 
         # AI & Smart Features
+        # llm2 deliberately excluded: exists on the appstore, but has zero
+        # releases (stable or beta) registered for platform 35.0.0 as of
+        # this writing — confirmed via apps.nextcloud.com/api/v1/platform/
+        # 35.0.0/apps.json and by testing app:install with --allow-unstable
+        # and app_install_overwrite directly, both still fail. Nothing on
+        # our end can fix this until upstream publishes a 35-compatible
+        # release; revisit then.
         assistant
         integration_openai
         recognize
 
         # Search & Indexing (Full-Text Search)
+        # files_fulltextsearch_tika deliberately excluded: its appstore
+        # page (apps.nextcloud.com/apps/files_fulltextsearch_tika) 404s —
+        # appears to have been delisted entirely, not just lacking a
+        # current release.
         files_fulltextsearch
         files_fulltextsearch_metadata
         fulltextsearch
@@ -97,6 +108,8 @@ reconcile_applications() {
         tasks
 
         # Media & Viewers
+        # cameraraw deliberately excluded: same as files_fulltextsearch_tika
+        # above — its appstore page 404s, appears delisted.
         epubviewer
         memories
         duplicatefinder
