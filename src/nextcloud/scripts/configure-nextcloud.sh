@@ -168,19 +168,9 @@ reconcile_applications() {
     fi
 }
 
-# context_chat needs its Python backend (context_chat_backend) deployed as
-# a separate container through AppAPI, which needs a deploy daemon (HaRP,
-# running as the appapi-harp service) registered first. Official install
-# order: AppAPI -> context_chat_backend -> context_chat -> a text-to-text
-# provider (we already have integration_openai). Embeddings are configured
-# to use the same external OpenAI-compatible endpoint integration_openai
-# already talks to (confirmed working: models/gemini-embedding-001),
-# avoiding the ~12GB RAM a locally-run embedding model would need.
-#
-# context_chat's own Search command crashes every single `occ` invocation
-# on NC35 in its stable release — fixed in v5.5.0-beta0, not yet stable.
-# The backend and frontend app versions must match major.minor, so both
-# are pinned to matching 5.5.0 betas here rather than resolved generically.
+# Order matters: AppAPI -> backend -> frontend. Backend/frontend beta
+# versions must match major.minor. Embeddings point at the same external
+# endpoint integration_openai uses, so no local model is needed.
 configure_context_chat_stack() {
     log_info "Configuring Context Chat (AppAPI, HaRP, backend, frontend)..."
 
