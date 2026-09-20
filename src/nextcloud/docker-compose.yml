@@ -365,6 +365,13 @@ services:
       - envs/appapi.env
     environment:
       - NC_INSTANCE_URL=https://nextcloud.xbhl.online
+      # Without this, HaRP rejects its own internal endpoints (e.g. the
+      # ExApp heartbeat) even from the real nextcloud container, since it
+      # doesn't recognize the caller's IP as trusted. This container has
+      # no external port exposure — only reachable from within
+      # nextcloud_internal_network — so trusting all sources here doesn't
+      # extend trust beyond what already exists on that private network.
+      - HP_TRUSTED_PROXY_IPS=0.0.0.0/0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - appapi_harp_certs:/certs
