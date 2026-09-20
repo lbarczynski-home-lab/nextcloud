@@ -222,6 +222,7 @@ install_applications() {
         cameraraw
         epubviewer
         memories
+        duplicatefinder
 
         # UI & Navigation Integrations
         integration_giphy
@@ -239,6 +240,7 @@ install_applications() {
         files_fulltextsearch_metadata
         news
         quota_warning
+        duplicatefinder
     )
     local o_idx=0
     for app in "${overwrite_apps[@]}"; do
