@@ -111,16 +111,7 @@ reconcile_applications() {
 
     # Two-factor auth is handled upstream by Authelia (LDAP-backed MFA) — no
     # 2FA method may be selectable from within Nextcloud itself.
-    #
-    # context_chat: its bundled Search command has a method signature
-    # incompatible with the Symfony Console version shipped in NC35, which
-    # crashes every single `occ` invocation (not just this app's own
-    # commands) the moment it's enabled — not just "unofficially supported",
-    # actively fatal. Do not move this back to desired_apps without
-    # confirming upstream has fixed that incompatibility.
     local unwanted_apps=(
-        app_api
-        context_chat
         cospend
         dicomviewer
         encryption
@@ -169,6 +160,25 @@ reconcile_applications() {
             occ_cmd app:remove "$app" --no-interaction 2>/dev/null || true
         fi
     done
+
+    # context_chat's bundled Search command had a method signature
+    # incompatible with the Symfony Console version shipped in NC35 —
+    # fatal on every `occ` invocation, not just this app's own commands.
+    # Fixed upstream in v5.5.0-beta0 ("add NC 35 support"), which hasn't
+    # reached a stable release yet — install explicitly with
+    # --allow-unstable rather than through the generic loop above, which
+    # never opts into pre-releases for the other ~40 apps. Needs app_api
+    # (AppAPI) enabled for its backend.
+    if ! list_contains "app_api" "$present_ids"; then
+        log_info " - Installing missing app: app_api (required by context_chat)"
+        occ_cmd app:install "app_api" --no-interaction 2>/dev/null || true
+    fi
+    if ! list_contains "context_chat" "$present_ids"; then
+        log_info " - Installing missing app: context_chat (beta — NC35 fix not yet stable)"
+        if ! occ_cmd app:install "context_chat" --allow-unstable --no-interaction; then
+            failed_installs+=("context_chat")
+        fi
+    fi
 
     if [ "${#failed_installs[@]}" -gt 0 ]; then
         log_error "Failed to install app(s): ${failed_installs[*]}"
