@@ -47,11 +47,19 @@ The maintenance worker uses a lock file (shared across the `nextcloud`,
 `nextcloud_maintenance_worker`, and `nextcloud_ai_worker` containers via the
 bind-mounted `scripts/` directory) to avoid two maintenance runs stepping on
 each other. If a run is already in progress, `--now` skips instead of
-running concurrently. To forcibly take over from a stuck run instead:
+running concurrently. To wait for it to finish instead of skipping
+immediately (up to 5 minutes, then gives up):
 
 ```bash
 docker exec -it nextcloud /scripts/maintenance-worker.sh --now --force
 ```
+
+`--force` cannot forcibly kill the other run — it's in a different
+container's process namespace, so a PID from the shared lock file isn't
+something this container can signal. If you need to kill a genuinely stuck
+run, do it in its own container, e.g.
+`docker exec nextcloud_maintenance_worker kill <pid>` (see the log line
+`acquire_lock` prints for the PID).
 
 ---
 
@@ -61,7 +69,6 @@ docker exec -it nextcloud /scripts/maintenance-worker.sh --now --force
 - `NEXTCLOUD_CLOUDFLARE_TUNNEL_UUID` / `NEXTCLOUD_CLOUDFLARE_TUNNEL_TOKEN`
 - `OFFICE_CLOUDFLARE_TUNNEL_UUID` / `OFFICE_CLOUDFLARE_TUNNEL_TOKEN`
 - `NEXTCLOUD_ADMIN_PASSWORD`
-- `NEXTCLOUD_MAIN_USER`
 - `NEXTCLOUD_DB_PASSWORD`
 - `NEXTCLOUD_REDIS_PASSWORD`
 - `NEXTCLOUD_OAUTH_CLIENT_SECRET`
