@@ -1,23 +1,50 @@
 #!/bin/bash
 set -eo pipefail
 
-readonly CYCLE_INTERVAL_SECONDS=900
-readonly FTS_SYNC_INTERVAL_CYCLES=4
-readonly DAILY_MAINTENANCE_CYCLES=96
-readonly OCC_SCRIPT="/var/www/html/occ"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib-common.sh"
+
+readonly CYCLE_INTERVAL_SECONDS=300
+readonly HOURLY_INTERVAL_CYCLES=12
+readonly DAILY_MAINTENANCE_CYCLES=288
 readonly CRON_SCRIPT="/var/www/html/cron.php"
-readonly CONFIG_FILE="/var/www/html/config/config.php"
 
-log_info() {
-    echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $*"
-}
+# Lives on the ./scripts bind mount, which is shared between the nextcloud,
+# nextcloud_maintenance_worker, and nextcloud_ai_worker containers — this is
+# what lets a manual `docker exec nextcloud .../maintenance-worker.sh --now`
+# actually see the lock held by the always-on maintenance worker container.
+# A container-local path (e.g. /var/run) would NOT be visible across containers.
+readonly LOCK_FILE="/scripts/.nextcloud-maintenance.lock"
+readonly LOCK_PID_FILE="${LOCK_FILE}.pid"
 
-log_error() {
-    echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $*" >&2
-}
+acquire_lock() {
+    local force="$1"
 
-occ_cmd() {
-    runuser -u www-data -- php "$OCC_SCRIPT" "$@"
+    exec 9>"$LOCK_FILE"
+
+    if flock -n 9; then
+        echo $$ >"$LOCK_PID_FILE"
+        trap 'rm -f "$LOCK_PID_FILE"' EXIT
+        return 0
+    fi
+
+    if [ "$force" -eq 1 ]; then
+        local holder_pid
+        holder_pid=$(cat "$LOCK_PID_FILE" 2>/dev/null || true)
+        if [ -n "$holder_pid" ] && kill -0 "$holder_pid" 2>/dev/null; then
+            log_info "Forcing takeover: terminating previous maintenance run (PID ${holder_pid})..."
+            kill "$holder_pid" 2>/dev/null || true
+            sleep 2
+            kill -9 "$holder_pid" 2>/dev/null || true
+        fi
+        flock 9
+        echo $$ >"$LOCK_PID_FILE"
+        trap 'rm -f "$LOCK_PID_FILE"' EXIT
+        return 0
+    fi
+
+    log_info "Another maintenance run is already in progress — skipping."
+    exit 0
 }
 
 execute_maintenance_step() {
@@ -36,23 +63,6 @@ execute_maintenance_step() {
         fi
         return 0
     fi
-}
-
-is_nextcloud_ready() {
-    if [ ! -f "$OCC_SCRIPT" ] || [ ! -f "$CONFIG_FILE" ]; then
-        return 1
-    fi
-
-    local status
-    status=$(occ_cmd status --output=json 2>/dev/null || echo "{}")
-
-    local installed
-    installed=$(echo "$status" | grep -o '"installed":true' || true)
-
-    local maintenance
-    maintenance=$(echo "$status" | grep -o '"maintenance":false' || true)
-
-    [ -n "$installed" ] && [ -n "$maintenance" ]
 }
 
 run_system_cron() {
@@ -82,6 +92,28 @@ run_fulltextsearch_sync() {
     execute_maintenance_step "Full-text search indexing" occ_cmd fulltextsearch:index --no-interaction
 }
 
+run_security_whitelist_refresh() {
+    log_info "Refreshing bruteforce/rate-limit IP whitelist (covers dynamic public IP changes)..."
+
+    local public_ip
+    public_ip=$(curl -s --max-time 5 https://api.ipify.org || curl -s --max-time 5 https://ifconfig.me || true)
+
+    local whitelist_json='["127.0.0.1/32","10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"'
+    if [ -n "$public_ip" ]; then
+        whitelist_json="${whitelist_json},\"${public_ip}/32\""
+    fi
+    whitelist_json="${whitelist_json}]"
+
+    execute_maintenance_step "Bruteforce whitelist refresh" occ_cmd config:app:set bruteforcesettings whitelist --value="$whitelist_json"
+}
+
+run_hourly_tasks() {
+    log_info "Executing hourly maintenance tasks (search sync, AI recognition, security whitelist)..."
+    run_fulltextsearch_sync
+    run_recognize_ai
+    run_security_whitelist_refresh
+}
+
 run_app_updates() {
     log_info "Checking and updating Nextcloud applications..."
     local exit_code=0
@@ -94,12 +126,14 @@ run_app_updates() {
 }
 
 run_daily_maintenance() {
-    log_info "Executing periodic app updates, database optimization, file cleanup, and repair..."
+    log_info "Executing daily app updates, database optimization, file cleanup, and repair..."
     run_app_updates
     execute_maintenance_step "Recognize recrawl" occ_cmd recognize:recrawl --no-interaction
     execute_maintenance_step "Files cleanup" occ_cmd files:cleanup --no-interaction
     execute_maintenance_step "Database optimization" occ_cmd db:optimize --no-interaction
     execute_maintenance_step "Database add missing indices" occ_cmd db:add-missing-indices --no-interaction
+    execute_maintenance_step "Database add missing primary keys" occ_cmd db:add-missing-primary-keys --no-interaction
+    execute_maintenance_step "Database add missing columns" occ_cmd db:add-missing-columns --no-interaction
     execute_maintenance_step "Maintenance repair" occ_cmd maintenance:repair --include-expensive --no-interaction
     execute_maintenance_step "Find duplicate files" occ_cmd duplicates:find-all --no-interaction
 }
@@ -109,15 +143,24 @@ run_all_maintenance() {
     run_system_cron
     run_preview_generation
     run_memories_indexing
-    execute_maintenance_step "Recognize recrawl" occ_cmd recognize:recrawl --no-interaction
-    run_recognize_ai
-    run_fulltextsearch_sync
+    run_hourly_tasks
     run_daily_maintenance
     log_info "Full maintenance suite completed."
 }
 
 main() {
-    if [ "${1:-}" = "--now" ] || [ "${1:-}" = "--once" ]; then
+    local run_once=0
+    local force=0
+    for arg in "$@"; do
+        case "$arg" in
+        --now | --once) run_once=1 ;;
+        --force) force=1 ;;
+        esac
+    done
+
+    acquire_lock "$force"
+
+    if [ "$run_once" -eq 1 ]; then
         if ! is_nextcloud_ready; then
             log_error "Nextcloud is not ready or in maintenance mode. Aborting."
             exit 1
@@ -126,21 +169,20 @@ main() {
         exit 0
     fi
 
-    log_info "Maintenance worker started (preview: ${CYCLE_INTERVAL_SECONDS}s, search sync: every ${FTS_SYNC_INTERVAL_CYCLES} cycles, daily maintenance & app updates: every ${DAILY_MAINTENANCE_CYCLES} cycles)"
+    log_info "Maintenance worker started (light tasks: ${CYCLE_INTERVAL_SECONDS}s, hourly tasks: every ${HOURLY_INTERVAL_CYCLES} cycles, daily maintenance: every ${DAILY_MAINTENANCE_CYCLES} cycles)"
 
-    local fts_counter=0
+    local hourly_counter=0
     local daily_counter=0
 
     while true; do
         if is_nextcloud_ready; then
             run_preview_generation
             run_memories_indexing
-            run_recognize_ai
 
-            fts_counter=$((fts_counter + 1))
-            if [ "$fts_counter" -ge "$FTS_SYNC_INTERVAL_CYCLES" ]; then
-                run_fulltextsearch_sync
-                fts_counter=0
+            hourly_counter=$((hourly_counter + 1))
+            if [ "$hourly_counter" -ge "$HOURLY_INTERVAL_CYCLES" ]; then
+                run_hourly_tasks
+                hourly_counter=0
             fi
 
             daily_counter=$((daily_counter + 1))

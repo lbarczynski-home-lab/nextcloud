@@ -1,17 +1,16 @@
 #!/bin/bash
+# Tier 2 — infrastructure configuration, reconciled on every container start.
+#
+# Everything here is infra-owned (driven by env vars / fixed container
+# paths), never something an admin tweaks from the web UI, and safe to
+# reassert every start. Heavy, one-off work (app installs) lives in
+# bootstrap-once.sh; recurring index/AI/repair jobs live in
+# maintenance-worker.sh — neither belongs here, since this script runs on
+# every restart and must stay fast.
 set -eo pipefail
 
-log_info() {
-    echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $*"
-}
-
-log_error() {
-    echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $*" >&2
-}
-
-occ_cmd() {
-    runuser -u www-data -- php /var/www/html/occ "$@"
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib-common.sh"
 
 validate_environment() {
     log_info "Validating required environment variables..."
@@ -56,28 +55,6 @@ validate_environment() {
     fi
 }
 
-wait_for_installation() {
-    local max_attempts=60
-    local attempt=0
-
-    log_info "Waiting for Nextcloud base installation to complete..."
-    while [ "$attempt" -lt "$max_attempts" ]; do
-        if [ -f /var/www/html/occ ] && [ -f /var/www/html/config/config.php ]; then
-            local status
-            status=$(occ_cmd status --output=json 2>/dev/null || echo "{}")
-            if echo "$status" | grep -q '"installed":true'; then
-                log_info "Nextcloud installation detected and verified."
-                return 0
-            fi
-        fi
-        attempt=$((attempt + 1))
-        sleep 5
-    done
-
-    log_error "Nextcloud installation timed out after $((max_attempts * 5)) seconds."
-    return 1
-}
-
 configure_system() {
     local trashbin_retention="${NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION:?NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION is not set}"
     local versions_retention="${NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION:?NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION is not set}"
@@ -101,7 +78,11 @@ configure_system() {
     occ_cmd config:system:set server_id --value="pve-01-cloud-vm"
     occ_cmd config:system:set trashbin_retention_obligation --value="$trashbin_retention"
     occ_cmd config:system:set versions_retention_obligation --value="$versions_retention"
-    occ_cmd twofactorauth:enforce --on --no-interaction 2>/dev/null || true
+
+    # Two-factor auth is handled upstream by Authelia (LDAP-backed MFA) —
+    # enforcement must stay off, and the twofactor_* apps are removed
+    # entirely in bootstrap-once.sh so no method is even selectable.
+    occ_cmd twofactorauth:enforce --off --no-interaction 2>/dev/null || true
 
     local idx=0
     for proxy in $TRUSTED_PROXIES; do
@@ -172,106 +153,6 @@ configure_previews() {
     occ_cmd config:app:set previewgenerator heightSizes --value="64 128 256 512 1024 1080"
 }
 
-install_applications() {
-    log_info "Installing and enabling required applications..."
-
-    local apps=(
-        # Authentication & Security
-        admin_audit
-        bruteforcesettings
-        files_antivirus
-        suspicious_login
-        twofactor_nextcloud_notification
-        user_oidc
-
-        # AI & Smart Features
-        assistant
-        context_chat
-        integration_openai
-        llm2
-        recognize
-
-        # Search & Indexing (Full-Text Search)
-        files_fulltextsearch
-        files_fulltextsearch_metadata
-        files_fulltextsearch_tika
-        fulltextsearch
-        fulltextsearch_elasticsearch
-
-        # File Management & Storage
-        files_automatedtagging
-        files_retention
-        groupfolders
-        previewgenerator
-        quota_warning
-
-        # Collaboration & Office
-        bookmarks
-        calendar
-        contacts
-        deck
-        drawio
-        forms
-        mail
-        notes
-        richdocuments
-        spreed
-        tasks
-
-        # Media & Viewers
-        cameraraw
-        epubviewer
-        memories
-        duplicatefinder
-
-        # UI & Navigation Integrations
-        integration_giphy
-        maps
-        news
-        notify_push
-        side_menu
-    )
-
-    log_info "Configuring app version compatibility overwrite whitelist..."
-    local overwrite_apps=(
-        previewgenerator
-        context_chat
-        drawio
-        files_fulltextsearch_metadata
-        news
-        quota_warning
-        duplicatefinder
-    )
-    local o_idx=0
-    for app in "${overwrite_apps[@]}"; do
-        occ_cmd config:system:set app_install_overwrite "$o_idx" --value="$app"
-        o_idx=$((o_idx + 1))
-    done
-
-    for app in "${apps[@]}"; do
-        log_info " - Ensuring app is active: $app"
-        occ_cmd app:install "$app" --no-interaction 2>/dev/null || occ_cmd app:enable "$app" --no-interaction 2>/dev/null || true
-    done
-
-    local disabled_apps=(
-        app_api
-        cospend
-        dicomviewer
-        encryption
-        external
-        registration
-        twofactor_totp
-        user_ldap
-    )
-
-    for app in "${disabled_apps[@]}"; do
-        occ_cmd app:disable "$app" --no-interaction 2>/dev/null || true
-        occ_cmd app:remove "$app" --no-interaction 2>/dev/null || true
-    done
-
-    occ_cmd app:update --all --no-interaction >/dev/null 2>&1 || true
-}
-
 configure_office() {
     log_info "Configuring Nextcloud Office (Collabora Online at https://office.xbhl.online)..."
 
@@ -322,8 +203,8 @@ configure_antivirus() {
     occ_cmd config:app:set files_antivirus av_stream_max_length --value="104857600"
 }
 
-configure_fulltextsearch() {
-    log_info "Configuring Elasticsearch Full-Text Search and Apache Tika integration..."
+configure_fulltextsearch_backend() {
+    log_info "Configuring Elasticsearch Full-Text Search and Apache Tika backend wiring..."
 
     occ_cmd fulltextsearch:configure '{"search_platform":"OCA\\FullTextSearch_Elasticsearch\\Platform\\ElasticSearchPlatform"}' --no-interaction
     occ_cmd fulltextsearch_elasticsearch:configure '{"elastic_host":"http://elasticsearch:9200","elastic_index":"nextcloud"}' --no-interaction
@@ -331,12 +212,7 @@ configure_fulltextsearch() {
     occ_cmd files_fulltextsearch:configure '{"files_metadata":"1","files_metadata_max_size":"100"}' --no-interaction 2>/dev/null || true
     occ_cmd config:app:set files_fulltextsearch_metadata metadata_indexed --value="1"
     occ_cmd config:app:set files_fulltextsearch_metadata files_metadata_max_size --value="100"
-
-    (
-        sleep 20
-        log_info "Triggering initial full-text search indexing in background..."
-        occ_cmd fulltextsearch:index --no-interaction >/dev/null 2>&1 || true
-    ) &
+    # Actual (re)indexing runs periodically from maintenance-worker.sh, not at container start.
 }
 
 configure_talk() {
@@ -346,7 +222,7 @@ configure_talk() {
     occ_cmd config:app:set spreed turn_servers --value='[{"server":"'"$COTURN_HOST"':3478","secret":"'"$COTURN_SECRET"'","protocols":"udp,tcp"}]'
 
     if [ -n "${GIPHY_API_KEY:-}" ] && [ "$GIPHY_API_KEY" != "PLACEHOLDER" ]; then
-        log_info "Configuring Giphy API Key and rating filter (r) for Talk integration..."
+        log_info "Configuring Giphy API Key for Talk integration (rating=r: no content restriction)..."
         occ_cmd config:app:set integration_giphy api_key --value="$GIPHY_API_KEY"
         occ_cmd config:app:set integration_giphy rating_filter --value="r"
     fi
@@ -372,24 +248,6 @@ configure_ai() {
     occ_cmd config:app:set integration_openai free_prompts --value="1"
     occ_cmd config:app:set integration_openai max_tokens --value="8192"
     occ_cmd config:app:set integration_openai context_size --value="32768"
-}
-
-configure_recognize() {
-    log_info "Configuring Nextcloud Recognize AI models and features..."
-
-    occ_cmd config:app:set recognize face_recognition_enabled --value="1"
-    occ_cmd config:app:set recognize object_recognition_enabled --value="1"
-    occ_cmd config:app:set recognize landmark_recognition_enabled --value="1"
-    occ_cmd config:app:set recognize music_recognition_enabled --value="1"
-    occ_cmd config:app:set recognize video_recognition_enabled --value="1"
-
-    occ_cmd recognize:download-models --no-interaction 2>/dev/null || true
-
-    (
-        sleep 20
-        log_info "Triggering initial Recognize full library recrawl in background..."
-        occ_cmd recognize:recrawl --no-interaction >/dev/null 2>&1 || true
-    ) &
 }
 
 configure_smtp() {
@@ -422,17 +280,8 @@ configure_client_push() {
     occ_cmd notify_push:setup "https://${OVERWRITEHOST}/push" --no-interaction
 }
 
-optimize_database() {
-    log_info "Running database indexing and optimizations..."
-
-    occ_cmd db:add-missing-indices --no-interaction || true
-    occ_cmd db:add-missing-primary-keys --no-interaction || true
-    occ_cmd db:add-missing-columns --no-interaction || true
-    occ_cmd maintenance:repair --include-expensive --no-interaction || true
-}
-
-configure_security() {
-    log_info "Configuring Brute Force & Rate Limit Protection Whitelists..."
+refresh_security_whitelist() {
+    log_info "Refreshing Brute Force & Rate Limit Protection Whitelists..."
 
     local public_ip
     public_ip=$(curl -s --max-time 5 https://api.ipify.org || curl -s --max-time 5 https://ifconfig.me || true)
@@ -470,33 +319,25 @@ ensure_admin_privileges() {
 }
 
 main() {
-    log_info "Starting Nextcloud bootstrap configuration..."
+    log_info "Reconciling Nextcloud runtime configuration..."
 
     validate_environment
-    wait_for_installation
-
     configure_system
     configure_caching
     configure_previews
-
-    install_applications
-
-    configure_oidc
     configure_office
     configure_memories
-    configure_client_push
+    configure_oidc || log_error "OIDC provider configuration failed — will retry on next restart."
     configure_antivirus
-    configure_fulltextsearch
+    configure_fulltextsearch_backend
     configure_talk
     configure_ai
-    configure_recognize
     configure_smtp
-    configure_security
-
-    optimize_database
+    configure_client_push
+    refresh_security_whitelist
     ensure_admin_privileges
 
-    log_info "Nextcloud configuration completed successfully."
+    log_info "Nextcloud runtime configuration reconciled."
 }
 
 main "$@"
