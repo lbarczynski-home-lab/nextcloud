@@ -37,6 +37,7 @@ validate_environment() {
         SMTP_FROM
         COTURN_SECRET
         COTURN_HOST
+        HP_SHARED_KEY
         NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION
         NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION
     )
@@ -161,28 +162,63 @@ reconcile_applications() {
         fi
     done
 
-    # context_chat's bundled Search command had a method signature
-    # incompatible with the Symfony Console version shipped in NC35 —
-    # fatal on every `occ` invocation, not just this app's own commands.
-    # Fixed upstream in v5.5.0-beta0 ("add NC 35 support"), which hasn't
-    # reached a stable release yet — install explicitly with
-    # --allow-unstable rather than through the generic loop above, which
-    # never opts into pre-releases for the other ~40 apps. Needs app_api
-    # (AppAPI) enabled for its backend.
-    if ! list_contains "app_api" "$present_ids"; then
-        log_info " - Installing missing app: app_api (required by context_chat)"
-        occ_cmd app:install "app_api" --no-interaction 2>/dev/null || true
-    fi
-    if ! list_contains "context_chat" "$present_ids"; then
-        log_info " - Installing missing app: context_chat (beta — NC35 fix not yet stable)"
-        if ! occ_cmd app:install "context_chat" --allow-unstable --no-interaction; then
-            failed_installs+=("context_chat")
-        fi
-    fi
-
     if [ "${#failed_installs[@]}" -gt 0 ]; then
         log_error "Failed to install app(s): ${failed_installs[*]}"
         return 1
+    fi
+}
+
+# context_chat needs its Python backend (context_chat_backend) deployed as
+# a separate container through AppAPI, which needs a deploy daemon (HaRP,
+# running as the appapi-harp service) registered first. Official install
+# order: AppAPI -> context_chat_backend -> context_chat -> a text-to-text
+# provider (we already have integration_openai). Embeddings are configured
+# to use the same external OpenAI-compatible endpoint integration_openai
+# already talks to (confirmed working: models/gemini-embedding-001),
+# avoiding the ~12GB RAM a locally-run embedding model would need.
+#
+# context_chat's own Search command crashes every single `occ` invocation
+# on NC35 in its stable release — fixed in v5.5.0-beta0, not yet stable.
+# The backend and frontend app versions must match major.minor, so both
+# are pinned to matching 5.5.0 betas here rather than resolved generically.
+configure_context_chat_stack() {
+    log_info "Configuring Context Chat (AppAPI, HaRP, backend, frontend)..."
+
+    occ_cmd app:install app_api --no-interaction 2>/dev/null || true
+    occ_cmd app:enable app_api --no-interaction 2>/dev/null || true
+
+    if ! occ_cmd app_api:daemon:list 2>/dev/null | grep -q "harp_docker"; then
+        log_info " - Registering HaRP deploy daemon..."
+        if ! occ_cmd app_api:daemon:register harp_docker "AppAPI HaRP" "docker-install" "http" \
+            "appapi-harp:8780" "https://${OVERWRITEHOST}" \
+            --net nextcloud_internal_network --harp \
+            --harp_frp_address "appapi-harp:8782" \
+            --harp_shared_key "$HP_SHARED_KEY" \
+            --set-default --no-interaction; then
+            log_error "Failed to register the HaRP deploy daemon"
+            return 1
+        fi
+    fi
+
+    if ! occ_cmd app_api:app:list 2>/dev/null | grep -q "context_chat_backend"; then
+        log_info " - Registering context_chat_backend (v5.5.0-beta1, matching context_chat's beta)..."
+        if ! occ_cmd app_api:app:register context_chat_backend harp_docker \
+            --info-xml "https://raw.githubusercontent.com/nextcloud/context_chat_backend/v5.5.0-beta1/appinfo/info.xml" \
+            --env "CC_EM_BASE_URL=${AI_API_BASE_URL}" \
+            --env "CC_EM_MODEL_NAME=models/gemini-embedding-001" \
+            --env "CC_EM_APIKEY=${AI_API_KEY}" \
+            --wait-finish --no-interaction; then
+            log_error "Failed to register context_chat_backend"
+            return 1
+        fi
+    fi
+
+    if ! occ_cmd app:list --output=json 2>/dev/null | jq -e '(.enabled // {}) + (.disabled // {}) | has("context_chat")' >/dev/null; then
+        log_info " - Installing context_chat (beta — NC35 fix not yet stable)..."
+        if ! occ_cmd app:install context_chat --allow-unstable --no-interaction; then
+            log_error "Failed to install context_chat"
+            return 1
+        fi
     fi
 }
 
@@ -462,6 +498,7 @@ main() {
     configure_memories
     configure_recognize_defaults
     configure_oidc || { log_error "OIDC provider configuration failed — will retry on next restart."; had_failures=1; }
+    configure_context_chat_stack || { log_error "Context Chat stack configuration failed — will retry on next restart."; had_failures=1; }
     configure_antivirus
     configure_fulltextsearch_backend
     configure_talk
