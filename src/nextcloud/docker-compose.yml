@@ -365,6 +365,8 @@ services:
       - envs/appapi.env
     environment:
       - NC_INSTANCE_URL=https://nextcloud.xbhl.online
+      # No external exposure on this network, so trusting all is fine.
+      - HP_TRUSTED_PROXY_IPS=0.0.0.0/0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - appapi_harp_certs:/certs
