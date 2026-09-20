@@ -43,6 +43,20 @@ test:nextcloud:docker-compose:
     NEXTCLOUD_STORAGE_DRIVER_OPTS: "bind"
     NEXTCLOUD_STORAGE_DEVICE: "/tmp/nextcloud-test-data"
 
+test:nextcloud:shell-syntax:
+  stage: test
+  image: alpine:3.24.1
+  before_script:
+    - apk add --no-cache bash
+  script:
+    - |
+      exit_status=0
+      for file in $(find scripts src/nextcloud/scripts -name '*.sh'); do
+        echo "Checking ${file}"
+        bash -n "${file}" || exit_status=1
+      done
+      exit "${exit_status}"
+
 setup:generate-build-artifacts:
   script:
     - 'apk add --no-cache bash jq'

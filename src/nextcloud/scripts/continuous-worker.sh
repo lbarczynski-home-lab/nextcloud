@@ -2,7 +2,9 @@
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib-common.sh"
+source "$SCRIPT_DIR/common/logger.sh"
+source "$SCRIPT_DIR/common/occ.sh"
+source "$SCRIPT_DIR/common/readiness.sh"
 
 readonly TIMEOUT="${1:-3600}"
 
