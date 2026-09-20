@@ -14,6 +14,7 @@ services:
       - envs/smtp.env
       - envs/talk.env
       - envs/retention.env
+      - envs/appapi.env
     labels:
       - 'wud.watch=true'
       - 'wud.display.name=Nextcloud'
@@ -349,6 +350,35 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  appapi-harp:
+    image: ghcr.io/nextcloud/nextcloud-appapi-harp:v0.4.5
+    container_name: appapi-harp
+    hostname: appapi-harp
+    mem_limit: 256m
+    labels:
+      - 'wud.watch=true'
+      - 'wud.display.name=AppAPI HaRP'
+      - 'wud.display.icon=si:nextcloud'
+      - 'wud.tag.include=^v\d+\.\d+\.\d+$$'
+      - "wud.link.template=https://github.com/nextcloud/HaRP/releases/tag/v$${major}.$${minor}.$${patch}"
+    env_file:
+      - envs/appapi.env
+    environment:
+      - NC_INSTANCE_URL=https://nextcloud.xbhl.online
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - appapi_harp_certs:/certs
+    networks:
+      - nextcloud_internal
+    healthcheck:
+      test: [ "CMD-SHELL", "nc -z 127.0.0.1 8780 || exit 1" ]
+      interval: 30s
+      start_interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
   cloudflared:
     image: cloudflare/cloudflared:2026.9.1
     container_name: nextcloud_cloudflared
@@ -386,6 +416,9 @@ volumes:
     driver: local
 
   elasticsearch_data:
+    driver: local
+
+  appapi_harp_certs:
     driver: local
 
   scripts:

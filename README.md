@@ -12,6 +12,7 @@ Self-hosted enterprise private cloud storage and collaborative office suite powe
 - **Full-Text Search (FTS)**: Elasticsearch cluster paired with Apache Tika for deep content indexing (PDF, Office documents, text).
 - **Communication**: Nextcloud Talk with Coturn STUN/TURN integration for WebRTC audio/video calls.
 - **AI Integrations**: Nextcloud Assistant (LLM integration) and Recognize for local machine learning photo classification and facial recognition.
+- **Context Chat**: Chat with the content of your own files (e.g. "find invoices over 1000 PLN paid in cash"), via AppAPI + HaRP running the `context_chat_backend` ExApp, using the same external OpenAI-compatible endpoint as the Assistant for both completions and embeddings — no local embedding model or GPU required.
 - **Security & Antivirus**: ClamAV daemon for automated signature updates and streaming file scan on upload.
 - **High Performance Push**: `notify_push` backend for instant desktop and mobile WebSocket sync.
 - **High-Performance Image Previews**: Dedicated Imaginary microservice powered by `libvips` for accelerated on-demand photo and thumbnail generation in Nextcloud Memories.
@@ -73,6 +74,7 @@ run, do it in its own container, e.g.
 - `NEXTCLOUD_REDIS_PASSWORD`
 - `NEXTCLOUD_OAUTH_CLIENT_SECRET`
 - `NEXTCLOUD_COTURN_SECRET`
+- `NEXTCLOUD_APPAPI_HARP_SHARED_KEY`
 - `OPEN_WEBUI_API_KEY`
 - `GIPHY_API_KEY`
 
