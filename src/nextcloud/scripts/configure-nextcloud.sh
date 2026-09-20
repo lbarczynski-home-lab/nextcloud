@@ -329,7 +329,9 @@ configure_antivirus() {
     occ_cmd config:app:set files_antivirus av_host --value="clamav"
     occ_cmd config:app:set files_antivirus av_port --value="3310"
     occ_cmd config:app:set files_antivirus av_infected_action --value="delete"
-    occ_cmd config:app:set files_antivirus av_stream_max_length --value="104857600"
+    # 1GiB — most uploads here are photos/videos; the previous 100MB cap
+    # silently skipped scanning the majority of video files.
+    occ_cmd config:app:set files_antivirus av_stream_max_length --value="1073741824"
 }
 
 configure_fulltextsearch_backend() {
