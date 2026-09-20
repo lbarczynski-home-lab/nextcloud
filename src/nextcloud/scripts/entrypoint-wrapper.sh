@@ -8,8 +8,8 @@ if [ -n "$DATA_DIR" ]; then
     chmod 770 "$DATA_DIR" 2>/dev/null || true
 fi
 
-if [ -f /scripts/init-nextcloud.sh ]; then
-    /scripts/init-nextcloud.sh &
+if [ -f /scripts/run-init.sh ]; then
+    /scripts/run-init.sh &
 fi
 
 exec /entrypoint.sh "$@"

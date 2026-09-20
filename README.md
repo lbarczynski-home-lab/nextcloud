@@ -43,6 +43,16 @@ To manually run a complete maintenance and indexing cycle:
 docker exec -it nextcloud /scripts/maintenance-worker.sh --now
 ```
 
+The maintenance worker uses a lock file (shared across the `nextcloud`,
+`nextcloud_maintenance_worker`, and `nextcloud_ai_worker` containers via the
+bind-mounted `scripts/` directory) to avoid two maintenance runs stepping on
+each other. If a run is already in progress, `--now` skips instead of
+running concurrently. To forcibly take over from a stuck run instead:
+
+```bash
+docker exec -it nextcloud /scripts/maintenance-worker.sh --now --force
+```
+
 ---
 
 ## Required CI/CD Variables
