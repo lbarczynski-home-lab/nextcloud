@@ -27,9 +27,10 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "/scripts/healthcheck.sh" ]
-      interval: 5s
+      interval: 30s
+      start_interval: 5s
       timeout: 5s
-      retries: 60
+      retries: 3
       start_period: 60s
     depends_on:
       postgres_db:
@@ -156,9 +157,10 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} || exit 1" ]
-      interval: 5s
+      interval: 30s
+      start_interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 3
       start_period: 30s
     restart: unless-stopped
 
@@ -180,9 +182,10 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_HOST_PASSWORD\" ping | grep PONG || exit 1" ]
-      interval: 5s
+      interval: 30s
+      start_interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 3
       start_period: 15s
     restart: unless-stopped
 
@@ -203,10 +206,11 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "nc -z 127.0.0.1 3310 || exit 1" ]
-      interval: 5s
+      interval: 30s
+      start_interval: 5s
       timeout: 5s
-      retries: 30
-      start_period: 90s
+      retries: 3
+      start_period: 120s
     restart: unless-stopped
 
   elasticsearch:
@@ -228,10 +232,11 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status' || exit 1" ]
-      interval: 5s
+      interval: 30s
+      start_interval: 5s
       timeout: 5s
-      retries: 20
-      start_period: 60s
+      retries: 3
+      start_period: 90s
     restart: unless-stopped
 
   tika:
@@ -247,9 +252,10 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:9998/version" ]
-      interval: 5s
+      interval: 30s
+      start_interval: 5s
       timeout: 5s
-      retries: 15
+      retries: 3
       start_period: 30s
     restart: unless-stopped
 
@@ -269,9 +275,10 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "/healthcheck.sh" ]
-      interval: 5s
+      interval: 30s
+      start_interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 3
       start_period: 15s
     restart: unless-stopped
 
@@ -296,9 +303,10 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "turnutils_stunclient 127.0.0.1 3478 || exit 1" ]
-      interval: 5s
+      interval: 30s
+      start_interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 3
       start_period: 15s
     restart: unless-stopped
 
