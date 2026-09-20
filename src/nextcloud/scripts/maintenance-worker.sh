@@ -17,6 +17,7 @@ readonly CRON_SCRIPT="/var/www/html/cron.php"
 # --now` wouldn't see the lock held by the always-on worker container.
 readonly LOCK_FILE="/scripts/.nextcloud-maintenance.lock"
 readonly LOCK_PID_FILE="${LOCK_FILE}.pid"
+readonly LOCK_WAIT_TIMEOUT_SECONDS=300
 
 acquire_lock() {
     local force="$1"
@@ -30,18 +31,22 @@ acquire_lock() {
     fi
 
     if [ "$force" -eq 1 ]; then
+        # Can't actually kill the holder here: PIDs are namespaced per
+        # container, so a PID read from this shared file means nothing
+        # from any container other than the one that wrote it. Wait with
+        # a bounded timeout instead of blocking forever. To intervene
+        # manually, `docker exec nextcloud_maintenance_worker kill <pid>`
+        # (using the PID below) runs in the correct namespace.
         local holder_pid
-        holder_pid=$(cat "$LOCK_PID_FILE" 2>/dev/null || true)
-        if [ -n "$holder_pid" ] && kill -0 "$holder_pid" 2>/dev/null; then
-            log_info "Forcing takeover: terminating previous maintenance run (PID ${holder_pid})..."
-            kill "$holder_pid" 2>/dev/null || true
-            sleep 2
-            kill -9 "$holder_pid" 2>/dev/null || true
+        holder_pid=$(cat "$LOCK_PID_FILE" 2>/dev/null || echo "unknown")
+        log_info "Another run (PID ${holder_pid}, in its own container) is in progress — waiting up to ${LOCK_WAIT_TIMEOUT_SECONDS}s for it to finish..."
+        if flock -w "$LOCK_WAIT_TIMEOUT_SECONDS" 9; then
+            echo $$ >"$LOCK_PID_FILE"
+            trap 'rm -f "$LOCK_PID_FILE"' EXIT
+            return 0
         fi
-        flock 9
-        echo $$ >"$LOCK_PID_FILE"
-        trap 'rm -f "$LOCK_PID_FILE"' EXIT
-        return 0
+        log_error "Timed out after ${LOCK_WAIT_TIMEOUT_SECONDS}s waiting for the previous run to finish. Aborting."
+        exit 1
     fi
 
     log_info "Another maintenance run is already in progress — skipping."
