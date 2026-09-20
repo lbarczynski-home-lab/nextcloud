@@ -31,7 +31,7 @@ services:
       start_interval: 5s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 270s
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -210,7 +210,7 @@ services:
       start_interval: 5s
       timeout: 5s
       retries: 3
-      start_period: 120s
+      start_period: 150s
     restart: unless-stopped
 
   elasticsearch:
