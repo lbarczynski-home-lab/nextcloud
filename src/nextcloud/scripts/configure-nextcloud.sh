@@ -97,7 +97,6 @@ reconcile_applications() {
         tasks
 
         # Media & Viewers
-        cameraraw
         epubviewer
         memories
         duplicatefinder
