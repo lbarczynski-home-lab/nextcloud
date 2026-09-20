@@ -12,11 +12,9 @@ readonly HOURLY_INTERVAL_CYCLES=12
 readonly DAILY_MAINTENANCE_CYCLES=288
 readonly CRON_SCRIPT="/var/www/html/cron.php"
 
-# Lives on the ./scripts bind mount, which is shared between the nextcloud,
-# nextcloud_maintenance_worker, and nextcloud_ai_worker containers — this is
-# what lets a manual `docker exec nextcloud .../maintenance-worker.sh --now`
-# actually see the lock held by the always-on maintenance worker container.
-# A container-local path (e.g. /var/run) would NOT be visible across containers.
+# Must live on the shared ./scripts bind mount, not a container-local path
+# like /var/run — otherwise `docker exec nextcloud .../maintenance-worker.sh
+# --now` wouldn't see the lock held by the always-on worker container.
 readonly LOCK_FILE="/scripts/.nextcloud-maintenance.lock"
 readonly LOCK_PID_FILE="${LOCK_FILE}.pid"
 

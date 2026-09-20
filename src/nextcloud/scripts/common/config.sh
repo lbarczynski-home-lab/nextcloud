@@ -1,11 +1,8 @@
 #!/bin/bash
-# Idempotent app-config helper for settings an admin owns after first setup.
 # Requires occ.sh to be sourced first.
 
-# Sets app-config key to $3 only if it currently has no value — for
-# settings an admin is expected to retune from the web UI afterwards
-# (e.g. Recognize feature toggles). Never overwrites an existing value,
-# so it stays correct on every restart without a one-time-only marker.
+# Never overwrites a value that's already set — for settings an admin
+# is expected to retune from the web UI after first setup.
 set_default_if_unset() {
     local app="$1" key="$2" value="$3"
     local current

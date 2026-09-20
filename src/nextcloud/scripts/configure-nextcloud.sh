@@ -1,19 +1,8 @@
 #!/bin/bash
-# Runtime configuration, reconciled on every container start.
-#
-# Everything here is declarative: it compares desired state against what's
-# actually there and only touches what's wrong, so re-running it on every
-# restart is cheap and safe. Two patterns are used:
-#   - reconcile_applications(): presence-based — install what's missing,
-#     remove what's unwanted, leave everything else alone (including
-#     apps an admin has manually disabled from the UI).
-#   - set_default_if_unset() (lib-common.sh): for settings an admin is
-#     expected to retune afterwards from the web UI (e.g. Recognize
-#     feature toggles) — sets a default only the first time, never
-#     overwrites a value that's already there.
-# Everything else here is plain infra config (Redis, SMTP, antivirus, ...)
-# driven by env vars, which is always safe to reassert unconditionally.
-# Recurring index/AI/repair jobs live in maintenance-worker.sh, not here.
+# Safe to rerun on every container start: everything here either
+# reconciles against current state (reconcile_applications) or only
+# sets a value if it's still unset (set_default_if_unset), so an
+# admin's own changes from the web UI survive a restart.
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -208,9 +197,7 @@ configure_system() {
     occ_cmd config:system:set trashbin_retention_obligation --value="$trashbin_retention"
     occ_cmd config:system:set versions_retention_obligation --value="$versions_retention"
 
-    # Two-factor auth is handled upstream by Authelia (LDAP-backed MFA) —
-    # enforcement must stay off, and the twofactor_* apps are removed by
-    # reconcile_applications() so no method is even selectable.
+    # See reconcile_applications() for why 2FA is disabled entirely.
     occ_cmd twofactorauth:enforce --off --no-interaction 2>/dev/null || true
 
     local idx=0
@@ -329,8 +316,7 @@ configure_antivirus() {
     occ_cmd config:app:set files_antivirus av_host --value="clamav"
     occ_cmd config:app:set files_antivirus av_port --value="3310"
     occ_cmd config:app:set files_antivirus av_infected_action --value="delete"
-    # 1GiB — most uploads here are photos/videos; the previous 100MB cap
-    # silently skipped scanning the majority of video files.
+    # 1GiB: this library is mostly large photo/video uploads.
     occ_cmd config:app:set files_antivirus av_stream_max_length --value="1073741824"
 }
 

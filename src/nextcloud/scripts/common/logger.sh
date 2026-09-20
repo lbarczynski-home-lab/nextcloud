@@ -1,5 +1,4 @@
 #!/bin/bash
-# Timestamped log helpers. No dependencies.
 
 log_info() {
     echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $*"

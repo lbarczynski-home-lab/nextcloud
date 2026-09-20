@@ -1,6 +1,5 @@
 #!/bin/bash
-# Checks whether the Nextcloud installation is present, installed, and out
-# of maintenance mode. Requires occ.sh and logger.sh to be sourced first.
+# Requires occ.sh and logger.sh to be sourced first.
 
 readonly NC_CONFIG_FILE="/var/www/html/config/config.php"
 

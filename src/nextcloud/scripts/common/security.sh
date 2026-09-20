@@ -1,8 +1,5 @@
 #!/bin/bash
-# Detects the current public IP and refreshes the bruteforce/rate-limit
-# whitelist. Shared between configure-nextcloud.sh (on every start) and
-# maintenance-worker.sh (hourly, to pick up dynamic public IP changes
-# without needing a restart). Requires occ.sh to be sourced first.
+# Requires occ.sh to be sourced first.
 
 refresh_security_whitelist() {
     local public_ip
