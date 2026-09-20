@@ -331,7 +331,7 @@ configure_antivirus() {
     occ_cmd config:app:set files_antivirus av_mode --value="daemon"
     occ_cmd config:app:set files_antivirus av_host --value="clamav"
     occ_cmd config:app:set files_antivirus av_port --value="3310"
-    occ_cmd config:app:set files_antivirus av_infected_action --value="only_log"
+    occ_cmd config:app:set files_antivirus av_infected_action --value="delete"
     occ_cmd config:app:set files_antivirus av_stream_max_length --value="104857600"
 }
 
