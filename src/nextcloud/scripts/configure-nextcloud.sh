@@ -1,12 +1,19 @@
 #!/bin/bash
-# Tier 2 — infrastructure configuration, reconciled on every container start.
+# Runtime configuration, reconciled on every container start.
 #
-# Everything here is infra-owned (driven by env vars / fixed container
-# paths), never something an admin tweaks from the web UI, and safe to
-# reassert every start. Heavy, one-off work (app installs) lives in
-# bootstrap-once.sh; recurring index/AI/repair jobs live in
-# maintenance-worker.sh — neither belongs here, since this script runs on
-# every restart and must stay fast.
+# Everything here is declarative: it compares desired state against what's
+# actually there and only touches what's wrong, so re-running it on every
+# restart is cheap and safe. Two patterns are used:
+#   - reconcile_applications(): presence-based — install what's missing,
+#     remove what's unwanted, leave everything else alone (including
+#     apps an admin has manually disabled from the UI).
+#   - set_default_if_unset() (lib-common.sh): for settings an admin is
+#     expected to retune afterwards from the web UI (e.g. Recognize
+#     feature toggles) — sets a default only the first time, never
+#     overwrites a value that's already there.
+# Everything else here is plain infra config (Redis, SMTP, antivirus, ...)
+# driven by env vars, which is always safe to reassert unconditionally.
+# Recurring index/AI/repair jobs live in maintenance-worker.sh, not here.
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -55,6 +62,129 @@ validate_environment() {
     fi
 }
 
+reconcile_applications() {
+    log_info "Reconciling installed applications against desired state..."
+
+    local desired_apps=(
+        # Authentication & Security
+        admin_audit
+        bruteforcesettings
+        files_antivirus
+        suspicious_login
+        user_oidc
+
+        # AI & Smart Features
+        assistant
+        context_chat
+        integration_openai
+        llm2
+        recognize
+
+        # Search & Indexing (Full-Text Search)
+        files_fulltextsearch
+        files_fulltextsearch_metadata
+        files_fulltextsearch_tika
+        fulltextsearch
+        fulltextsearch_elasticsearch
+
+        # File Management & Storage
+        files_automatedtagging
+        files_retention
+        groupfolders
+        previewgenerator
+        quota_warning
+
+        # Collaboration & Office
+        bookmarks
+        calendar
+        contacts
+        deck
+        drawio
+        forms
+        mail
+        notes
+        richdocuments
+        spreed
+        tasks
+
+        # Media & Viewers
+        cameraraw
+        epubviewer
+        memories
+        duplicatefinder
+
+        # UI & Navigation Integrations
+        integration_giphy
+        maps
+        news
+        notify_push
+        side_menu
+    )
+
+    # Two-factor auth is handled upstream by Authelia (LDAP-backed MFA) — no
+    # 2FA method may be selectable from within Nextcloud itself.
+    local unwanted_apps=(
+        app_api
+        cospend
+        dicomviewer
+        encryption
+        external
+        registration
+        user_ldap
+        twofactor_totp
+        twofactor_nextcloud_notification
+        twofactor_backupcodes
+    )
+
+    log_info "Configuring app version compatibility overwrite whitelist (temporary, pending NC35 app compat)..."
+    local overwrite_apps=(
+        previewgenerator
+        context_chat
+        drawio
+        files_fulltextsearch_metadata
+        news
+        quota_warning
+        duplicatefinder
+    )
+    local o_idx=0
+    for app in "${overwrite_apps[@]}"; do
+        occ_cmd config:system:set app_install_overwrite "$o_idx" --value="$app"
+        o_idx=$((o_idx + 1))
+    done
+
+    local present_ids
+    present_ids=$(occ_cmd app:list --output=json 2>/dev/null | jq -r '(.enabled // {} | keys) + (.disabled // {} | keys) | .[]')
+
+    is_present() {
+        grep -qx "$1" <<<"$present_ids"
+    }
+
+    for app in "${desired_apps[@]}"; do
+        if ! is_present "$app"; then
+            log_info " - Installing missing app: $app"
+            occ_cmd app:install "$app" --no-interaction 2>/dev/null || true
+        fi
+    done
+
+    for app in "${unwanted_apps[@]}"; do
+        if is_present "$app"; then
+            log_info " - Removing unwanted app: $app"
+            occ_cmd app:disable "$app" --no-interaction 2>/dev/null || true
+            occ_cmd app:remove "$app" --no-interaction 2>/dev/null || true
+        fi
+    done
+}
+
+configure_recognize_defaults() {
+    log_info "Applying default Recognize feature toggles where not already set..."
+
+    set_default_if_unset recognize face_recognition_enabled 1
+    set_default_if_unset recognize object_recognition_enabled 1
+    set_default_if_unset recognize landmark_recognition_enabled 1
+    set_default_if_unset recognize music_recognition_enabled 1
+    set_default_if_unset recognize video_recognition_enabled 1
+}
+
 configure_system() {
     local trashbin_retention="${NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION:?NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION is not set}"
     local versions_retention="${NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION:?NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION is not set}"
@@ -80,8 +210,8 @@ configure_system() {
     occ_cmd config:system:set versions_retention_obligation --value="$versions_retention"
 
     # Two-factor auth is handled upstream by Authelia (LDAP-backed MFA) —
-    # enforcement must stay off, and the twofactor_* apps are removed
-    # entirely in bootstrap-once.sh so no method is even selectable.
+    # enforcement must stay off, and the twofactor_* apps are removed by
+    # reconcile_applications() so no method is even selectable.
     occ_cmd twofactorauth:enforce --off --no-interaction 2>/dev/null || true
 
     local idx=0
@@ -322,11 +452,13 @@ main() {
     log_info "Reconciling Nextcloud runtime configuration..."
 
     validate_environment
+    reconcile_applications
     configure_system
     configure_caching
     configure_previews
     configure_office
     configure_memories
+    configure_recognize_defaults
     configure_oidc || log_error "OIDC provider configuration failed — will retry on next restart."
     configure_antivirus
     configure_fulltextsearch_backend
