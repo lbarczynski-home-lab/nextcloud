@@ -158,19 +158,15 @@ reconcile_applications() {
     local present_ids
     present_ids=$(occ_cmd app:list --output=json 2>/dev/null | jq -r '(.enabled // {} | keys) + (.disabled // {} | keys) | .[]')
 
-    is_present() {
-        grep -qx "$1" <<<"$present_ids"
-    }
-
     for app in "${desired_apps[@]}"; do
-        if ! is_present "$app"; then
+        if ! list_contains "$app" "$present_ids"; then
             log_info " - Installing missing app: $app"
             occ_cmd app:install "$app" --no-interaction 2>/dev/null || true
         fi
     done
 
     for app in "${unwanted_apps[@]}"; do
-        if is_present "$app"; then
+        if list_contains "$app" "$present_ids"; then
             log_info " - Removing unwanted app: $app"
             occ_cmd app:disable "$app" --no-interaction 2>/dev/null || true
             occ_cmd app:remove "$app" --no-interaction 2>/dev/null || true
