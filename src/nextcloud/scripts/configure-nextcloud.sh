@@ -126,8 +126,6 @@ reconcile_applications() {
 
     log_info "Configuring app version compatibility overwrite whitelist (temporary, pending NC35 app compat)..."
     local overwrite_apps=(
-        previewgenerator
-        drawio
         files_fulltextsearch_metadata
         news
         quota_warning
