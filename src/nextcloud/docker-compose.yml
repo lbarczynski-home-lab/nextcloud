@@ -1,7 +1,7 @@
 services:
   nextcloud:
     build: .
-    image: nextcloud:35.0.0-apache
+    image: nextcloud:35.0.1-apache
     container_name: nextcloud
     mem_limit: 1.5g
     env_file:
@@ -171,7 +171,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:8.10.1
+    image: redis:8.10.2
     container_name: nextcloud_redis
     mem_limit: 256m
     labels:
@@ -199,7 +199,7 @@ services:
   clamav:
     image: clamav/clamav:1.5.4_base
     container_name: nextcloud_clamav
-    mem_limit: 1.25g
+    mem_limit: 4g
     labels:
       - 'wud.watch=true'
       - 'wud.display.name=ClamAV'
@@ -382,7 +382,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.9.1
+    image: cloudflare/cloudflared:2026.9.3
     container_name: nextcloud_cloudflared
     profiles: [ "production" ]
     command: tunnel run
