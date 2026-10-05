@@ -261,7 +261,7 @@ services:
     restart: unless-stopped
 
   imaginary:
-    image: nextcloud/aio-imaginary:20260916_075031
+    image: nextcloud/aio-imaginary:20260929_105435
     container_name: nextcloud_imaginary
     command: -concurrency 50 -enable-url-source -http-read-timeout 180 -http-write-timeout 180
     cap_add:
@@ -369,7 +369,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.9.3
+    image: cloudflare/cloudflared:2026.10.0
     container_name: nextcloud_cloudflared
     profiles: [ "production" ]
     command: tunnel run
