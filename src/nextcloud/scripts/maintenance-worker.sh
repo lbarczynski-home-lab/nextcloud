@@ -137,7 +137,7 @@ run_daily_maintenance() {
     execute_maintenance_step "Database add missing indices" occ_cmd db:add-missing-indices --no-interaction
     execute_maintenance_step "Database add missing primary keys" occ_cmd db:add-missing-primary-keys --no-interaction
     execute_maintenance_step "Database add missing columns" occ_cmd db:add-missing-columns --no-interaction
-    execute_maintenance_step "Maintenance repair" occ_cmd maintenance:repair --include-expensive --no-interaction
+    execute_maintenance_step "Maintenance repair" occ_cmd maintenance:repair --no-interaction
 }
 
 # recognize:recrawl requeues the ENTIRE library for AI reprocessing on every
@@ -145,12 +145,15 @@ run_daily_maintenance() {
 # new files, so scheduling recrawl would mean the whole library gets
 # reprocessed on a loop forever. duplicates:find-all does a full-library
 # hash scan (upstream's own default cadence for this is every 5 days, and
-# it has known OOM reports on large libraries). Neither belongs in the
-# periodic schedule — only run via --now, when actually needed.
+# it has known OOM reports on large libraries). The expensive repair steps
+# (e.g. mimetype migrations over the whole filecache) only have work to do
+# after an upgrade. None of these belong in the periodic schedule — only
+# run via --now, when actually needed.
 run_full_library_rescan() {
-    log_info "Running full-library rescan (Recognize recrawl + duplicate scan)..."
+    log_info "Running full-library rescan (Recognize recrawl, duplicate scan, expensive repair)..."
     execute_maintenance_step "Recognize recrawl" occ_cmd recognize:recrawl --no-interaction
     execute_maintenance_step "Find duplicate files" occ_cmd duplicates:find-all --no-interaction
+    execute_maintenance_step "Expensive maintenance repair" occ_cmd maintenance:repair --include-expensive --no-interaction
 }
 
 run_all_maintenance() {
