@@ -282,8 +282,23 @@ services:
       - "wud.link.template=https://github.com/coturn/coturn/releases/tag/$${major}.$${minor}.$${patch}"
     env_file:
       - envs/talk.env
+    # The image's entrypoint runs `eval "echo $arg"` on every argument, which
+    # would execute this script instead of passing it to sh. Bypass it.
+    entrypoint: []
+    # Behind Docker's NAT and the router's, coturn only knows its container
+    # IP and would advertise that as the relay address. The (static) public
+    # IP is read from the TURN hostname's A record, the address clients use
+    # anyway, rather than hardcoded here. If it can't be resolved coturn
+    # still starts, without it, so Nextcloud's depends_on isn't blocked.
     command: >
-      /bin/sh -c 'exec turnserver -n --log-file=stdout --listening-port=3478 --min-port=49152 --max-port=49172 --realm="$$COTURN_REALM" --use-auth-secret --static-auth-secret="$$COTURN_SECRET" --fingerprint --lt-cred-mech --stale-nonce=600 --no-multicast-peers'
+      /bin/sh -c 'EXTERNAL_IP="$$(dig +short "$$COTURN_HOST" A | grep -E "^[0-9.]+$$" | tail -n1)";
+      if [ -n "$$EXTERNAL_IP" ]; then set -- --external-ip="$$EXTERNAL_IP";
+      else echo "WARNING: could not resolve $$COTURN_HOST, starting without --external-ip" >&2; fi;
+      exec turnserver -n --log-file=stdout
+      --listening-port=3478 --min-port=49152 --max-port=49172
+      "$$@"
+      --realm="$$COTURN_REALM" --use-auth-secret --static-auth-secret="$$COTURN_SECRET"
+      --fingerprint --lt-cred-mech --stale-nonce=600 --no-multicast-peers'
     ports:
       - "3478:3478/tcp"
       - "3478:3478/udp"
