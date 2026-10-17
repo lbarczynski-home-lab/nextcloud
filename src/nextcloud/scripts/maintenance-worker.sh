@@ -9,7 +9,10 @@ source "$SCRIPT_DIR/common/security.sh"
 
 readonly CYCLE_INTERVAL_SECONDS=300
 readonly HOURLY_INTERVAL_CYCLES=12
-readonly DAILY_MAINTENANCE_CYCLES=288
+# Same window as maintenance_window_start in configure-nextcloud.sh, where
+# Nextcloud itself schedules its heavy background jobs (01:00-05:00 UTC).
+readonly DAILY_WINDOW_START_HOUR_UTC=1
+readonly DAILY_WINDOW_END_HOUR_UTC=5
 readonly CRON_SCRIPT="/var/www/html/cron.php"
 
 # Must live on the shared ./scripts bind mount, not a container-local path
@@ -161,6 +164,15 @@ run_all_maintenance() {
     log_info "Full maintenance suite completed."
 }
 
+is_daily_maintenance_due() {
+    local last_run_date="$1"
+    local hour
+    hour=$((10#$(date -u +%H)))
+    [ "$hour" -ge "$DAILY_WINDOW_START_HOUR_UTC" ] &&
+        [ "$hour" -lt "$DAILY_WINDOW_END_HOUR_UTC" ] &&
+        [ "$last_run_date" != "$(date -u +%F)" ]
+}
+
 main() {
     local run_once=0
     local force=0
@@ -182,10 +194,10 @@ main() {
         exit 0
     fi
 
-    log_info "Maintenance worker started (light tasks: ${CYCLE_INTERVAL_SECONDS}s, hourly tasks: every ${HOURLY_INTERVAL_CYCLES} cycles, daily maintenance: every ${DAILY_MAINTENANCE_CYCLES} cycles)"
+    log_info "Maintenance worker started (light tasks: ${CYCLE_INTERVAL_SECONDS}s, hourly tasks: every ${HOURLY_INTERVAL_CYCLES} cycles, daily maintenance: once per day between ${DAILY_WINDOW_START_HOUR_UTC}:00 and ${DAILY_WINDOW_END_HOUR_UTC}:00 UTC)"
 
     local hourly_counter=0
-    local daily_counter=0
+    local last_daily_run_date=""
 
     while true; do
         if is_nextcloud_ready; then
@@ -198,10 +210,9 @@ main() {
                 hourly_counter=0
             fi
 
-            daily_counter=$((daily_counter + 1))
-            if [ "$daily_counter" -ge "$DAILY_MAINTENANCE_CYCLES" ]; then
+            if is_daily_maintenance_due "$last_daily_run_date"; then
                 run_daily_maintenance
-                daily_counter=0
+                last_daily_run_date=$(date -u +%F)
             fi
         else
             log_info "Nextcloud is not ready or in maintenance mode. Skipping cycle."
