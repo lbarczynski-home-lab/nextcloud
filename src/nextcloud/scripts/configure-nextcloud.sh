@@ -127,9 +127,6 @@ reconcile_applications() {
     log_info "Configuring app version compatibility overwrite whitelist (temporary, pending NC35 app compat)..."
     local overwrite_apps=(
         files_fulltextsearch_metadata
-        news
-        quota_warning
-        duplicatefinder
     )
     set_system_list app_install_overwrite "${overwrite_apps[@]}"
 
