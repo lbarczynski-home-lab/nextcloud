@@ -3,6 +3,11 @@ credentials-file: /etc/cloudflared/credentials.json
 no-autoupdate: true
 
 ingress:
+  # With a HaRP deploy daemon, AppAPI reaches ExApps through
+  # {nextcloud_url}/exapps/<appid>, which the reverse proxy must hand to HaRP.
+  - hostname: nextcloud.xbhl.online
+    path: ^/exapps/
+    service: http://appapi-harp:8780
   - hostname: nextcloud.xbhl.online
     service: http://nextcloud:80
   - service: http_status:404

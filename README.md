@@ -9,7 +9,7 @@ Self-hosted enterprise private cloud storage and collaborative office suite powe
 - **Nextcloud Hub**: Official Apache-based Nextcloud extended with multimedia processing tools (`ffmpeg`, `imagemagick`, `exiftool`).
 - **Database & Cache**: PostgreSQL with performance tuning and Redis for distributed memory caching and transactional file locking.
 - **Collaborative Office**: Collabora Online (CODE) for real-time document, spreadsheet, and presentation editing.
-- **Full-Text Search (FTS)**: Elasticsearch cluster paired with Apache Tika for deep content indexing (PDF, Office documents, text).
+- **Full-Text Search (FTS)**: Elasticsearch for deep content indexing (PDF, Office documents, text).
 - **Communication**: Nextcloud Talk with Coturn STUN/TURN integration for WebRTC audio/video calls.
 - **AI Integrations**: Nextcloud Assistant (LLM integration) and Recognize for local machine learning photo classification and facial recognition.
 - **Context Chat**: Chat with the content of your own files (e.g. "find invoices over 1000 PLN paid in cash"), via AppAPI + HaRP running the `context_chat_backend` ExApp, using the same external OpenAI-compatible endpoint as the Assistant for both completions and embeddings — no local embedding model or GPU required.

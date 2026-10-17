@@ -1,7 +1,11 @@
 services:
   collabora:
-    build: .
-    image: collabora/code:26.04.4.2.1
+    build:
+      context: .
+      # The local image reuses the upstream tag (for WUD), so without an
+      # explicit pull FROM would resolve to our own previous build.
+      pull: true
+    image: collabora/code:26.04.5.1.1
     container_name: collabora
     labels:
       - 'wud.watch=true'
@@ -26,7 +30,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.10.0
+    image: cloudflare/cloudflared:2026.10.1
     container_name: collabora_cloudflared
     labels:
       - 'wud.watch=true'

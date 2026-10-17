@@ -4,6 +4,4 @@ credentials-file: /etc/cloudflared/credentials.json
 ingress:
   - hostname: office.xbhl.online
     service: http://collabora:9980
-    originRequest:
-      noTLSVerify: true
   - service: http_status:404

@@ -9,7 +9,10 @@ source "$SCRIPT_DIR/common/security.sh"
 
 readonly CYCLE_INTERVAL_SECONDS=300
 readonly HOURLY_INTERVAL_CYCLES=12
-readonly DAILY_MAINTENANCE_CYCLES=288
+# Same window as maintenance_window_start in configure-nextcloud.sh, where
+# Nextcloud itself schedules its heavy background jobs (01:00-05:00 UTC).
+readonly DAILY_WINDOW_START_HOUR_UTC=1
+readonly DAILY_WINDOW_END_HOUR_UTC=5
 readonly CRON_SCRIPT="/var/www/html/cron.php"
 
 # Must live on the shared ./scripts bind mount, not a container-local path
@@ -134,7 +137,7 @@ run_daily_maintenance() {
     execute_maintenance_step "Database add missing indices" occ_cmd db:add-missing-indices --no-interaction
     execute_maintenance_step "Database add missing primary keys" occ_cmd db:add-missing-primary-keys --no-interaction
     execute_maintenance_step "Database add missing columns" occ_cmd db:add-missing-columns --no-interaction
-    execute_maintenance_step "Maintenance repair" occ_cmd maintenance:repair --include-expensive --no-interaction
+    execute_maintenance_step "Maintenance repair" occ_cmd maintenance:repair --no-interaction
 }
 
 # recognize:recrawl requeues the ENTIRE library for AI reprocessing on every
@@ -142,12 +145,15 @@ run_daily_maintenance() {
 # new files, so scheduling recrawl would mean the whole library gets
 # reprocessed on a loop forever. duplicates:find-all does a full-library
 # hash scan (upstream's own default cadence for this is every 5 days, and
-# it has known OOM reports on large libraries). Neither belongs in the
-# periodic schedule — only run via --now, when actually needed.
+# it has known OOM reports on large libraries). The expensive repair steps
+# (e.g. mimetype migrations over the whole filecache) only have work to do
+# after an upgrade. None of these belong in the periodic schedule — only
+# run via --now, when actually needed.
 run_full_library_rescan() {
-    log_info "Running full-library rescan (Recognize recrawl + duplicate scan)..."
+    log_info "Running full-library rescan (Recognize recrawl, duplicate scan, expensive repair)..."
     execute_maintenance_step "Recognize recrawl" occ_cmd recognize:recrawl --no-interaction
     execute_maintenance_step "Find duplicate files" occ_cmd duplicates:find-all --no-interaction
+    execute_maintenance_step "Expensive maintenance repair" occ_cmd maintenance:repair --include-expensive --no-interaction
 }
 
 run_all_maintenance() {
@@ -159,6 +165,15 @@ run_all_maintenance() {
     run_daily_maintenance
     run_full_library_rescan
     log_info "Full maintenance suite completed."
+}
+
+is_daily_maintenance_due() {
+    local last_run_date="$1"
+    local hour
+    hour=$((10#$(date -u +%H)))
+    [ "$hour" -ge "$DAILY_WINDOW_START_HOUR_UTC" ] &&
+        [ "$hour" -lt "$DAILY_WINDOW_END_HOUR_UTC" ] &&
+        [ "$last_run_date" != "$(date -u +%F)" ]
 }
 
 main() {
@@ -182,10 +197,10 @@ main() {
         exit 0
     fi
 
-    log_info "Maintenance worker started (light tasks: ${CYCLE_INTERVAL_SECONDS}s, hourly tasks: every ${HOURLY_INTERVAL_CYCLES} cycles, daily maintenance: every ${DAILY_MAINTENANCE_CYCLES} cycles)"
+    log_info "Maintenance worker started (light tasks: ${CYCLE_INTERVAL_SECONDS}s, hourly tasks: every ${HOURLY_INTERVAL_CYCLES} cycles, daily maintenance: once per day between ${DAILY_WINDOW_START_HOUR_UTC}:00 and ${DAILY_WINDOW_END_HOUR_UTC}:00 UTC)"
 
     local hourly_counter=0
-    local daily_counter=0
+    local last_daily_run_date=""
 
     while true; do
         if is_nextcloud_ready; then
@@ -198,10 +213,9 @@ main() {
                 hourly_counter=0
             fi
 
-            daily_counter=$((daily_counter + 1))
-            if [ "$daily_counter" -ge "$DAILY_MAINTENANCE_CYCLES" ]; then
+            if is_daily_maintenance_due "$last_daily_run_date"; then
                 run_daily_maintenance
-                daily_counter=0
+                last_daily_run_date=$(date -u +%F)
             fi
         else
             log_info "Nextcloud is not ready or in maintenance mode. Skipping cycle."

@@ -1,7 +1,11 @@
 services:
   nextcloud:
-    build: .
-    image: nextcloud:35.0.1-apache
+    build:
+      context: .
+      # The local image reuses the upstream tag (for WUD), so without an
+      # explicit pull FROM would resolve to our own previous build.
+      pull: true
+    image: nextcloud:35.0.2-apache
     container_name: nextcloud
     env_file:
       - envs/nextcloud.env
@@ -42,8 +46,6 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-      tika:
-        condition: service_healthy
       coturn:
         condition: service_healthy
       imaginary:
@@ -51,7 +53,9 @@ services:
     restart: unless-stopped
 
   nextcloud_cron:
-    build: .
+    build:
+      context: .
+      pull: true
     container_name: nextcloud_cron
     entrypoint: [ "/cron.sh" ]
     env_file:
@@ -77,7 +81,9 @@ services:
     restart: unless-stopped
 
   nextcloud_maintenance_worker:
-    build: .
+    build:
+      context: .
+      pull: true
     container_name: nextcloud_maintenance_worker
     entrypoint: [ "/scripts/maintenance-worker.sh" ]
     env_file:
@@ -104,7 +110,9 @@ services:
     restart: unless-stopped
 
   nextcloud_ai_worker:
-    build: .
+    build:
+      context: .
+      pull: true
     container_name: nextcloud_ai_worker
     entrypoint: [ "/scripts/continuous-worker.sh", "3600" ]
     env_file:
@@ -176,7 +184,7 @@ services:
       - "wud.link.template=https://github.com/redis/redis/releases/tag/$${major}.$${minor}.$${patch}"
     env_file:
       - envs/redis.env
-    command: /bin/sh -c 'exec redis-server --requirepass "$$REDIS_HOST_PASSWORD" --maxmemory 128mb --maxmemory-policy allkeys-lru'
+    command: /bin/sh -c 'exec redis-server --requirepass "$$REDIS_HOST_PASSWORD" --maxmemory 512mb --maxmemory-policy allkeys-lru'
     volumes:
       - redis_data:/data
     networks:
@@ -215,7 +223,7 @@ services:
     restart: unless-stopped
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.4
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.5
     container_name: nextcloud_elasticsearch
     labels:
       - 'wud.watch=true'
@@ -240,28 +248,8 @@ services:
       start_period: 90s
     restart: unless-stopped
 
-  tika:
-    image: apache/tika:3.3.1.0-full
-    container_name: nextcloud_tika
-    labels:
-      - 'wud.watch=true'
-      - 'wud.display.name=Apache Tika'
-      - 'wud.display.icon=si:apache'
-      - 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-full$$'
-      - "wud.link.template=https://github.com/apache/tika/releases"
-    networks:
-      - nextcloud_internal
-    healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:9998/version" ]
-      interval: 30s
-      start_interval: 5s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-
   imaginary:
-    image: nextcloud/aio-imaginary:20260929_105435
+    image: nextcloud/aio-imaginary:20261014_095932
     container_name: nextcloud_imaginary
     command: -concurrency 50 -enable-url-source -http-read-timeout 180 -http-write-timeout 180
     cap_add:
@@ -294,8 +282,23 @@ services:
       - "wud.link.template=https://github.com/coturn/coturn/releases/tag/$${major}.$${minor}.$${patch}"
     env_file:
       - envs/talk.env
+    # The image's entrypoint runs `eval "echo $arg"` on every argument, which
+    # would execute this script instead of passing it to sh. Bypass it.
+    entrypoint: []
+    # Behind Docker's NAT and the router's, coturn only knows its container
+    # IP and would advertise that as the relay address. The (static) public
+    # IP is read from the TURN hostname's A record, the address clients use
+    # anyway, rather than hardcoded here. If it can't be resolved coturn
+    # still starts, without it, so Nextcloud's depends_on isn't blocked.
     command: >
-      /bin/sh -c 'exec turnserver -n --log-file=stdout --listening-port=3478 --min-port=49152 --max-port=49172 --realm="$$COTURN_REALM" --use-auth-secret --static-auth-secret="$$COTURN_SECRET" --fingerprint --lt-cred-mech --stale-nonce=600 --no-multicast-peers'
+      /bin/sh -c 'EXTERNAL_IP="$$(dig +short "$$COTURN_HOST" A | grep -E "^[0-9.]+$$" | tail -n1)";
+      if [ -n "$$EXTERNAL_IP" ]; then set -- --external-ip="$$EXTERNAL_IP";
+      else echo "WARNING: could not resolve $$COTURN_HOST, starting without --external-ip" >&2; fi;
+      exec turnserver -n --log-file=stdout
+      --listening-port=3478 --min-port=49152 --max-port=49172
+      "$$@"
+      --realm="$$COTURN_REALM" --use-auth-secret --static-auth-secret="$$COTURN_SECRET"
+      --fingerprint --stale-nonce=600 --no-multicast-peers --no-tcp-relay'
     ports:
       - "3478:3478/tcp"
       - "3478:3478/udp"
@@ -369,7 +372,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.10.0
+    image: cloudflare/cloudflared:2026.10.1
     container_name: nextcloud_cloudflared
     profiles: [ "production" ]
     command: tunnel run
