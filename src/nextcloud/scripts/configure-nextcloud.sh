@@ -355,8 +355,10 @@ configure_antivirus() {
     occ_cmd config:app:set files_antivirus av_host --value="clamav"
     occ_cmd config:app:set files_antivirus av_port --value="3310"
     occ_cmd config:app:set files_antivirus av_infected_action --value="delete"
-    # 1GiB: this library is mostly large photo/video uploads.
-    occ_cmd config:app:set files_antivirus av_stream_max_length --value="1073741824"
+    # Bytes sent per INSTREAM session, not a file size cap: larger files are
+    # scanned in several passes. Must stay below clamd's StreamMaxLength
+    # (100M by default in the clamav image), or clamd aborts the stream.
+    occ_cmd config:app:set files_antivirus av_stream_max_length --value="100000000"
 }
 
 configure_fulltextsearch_backend() {
