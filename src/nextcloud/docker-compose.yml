@@ -298,7 +298,7 @@ services:
       --listening-port=3478 --min-port=49152 --max-port=49172
       "$$@"
       --realm="$$COTURN_REALM" --use-auth-secret --static-auth-secret="$$COTURN_SECRET"
-      --fingerprint --lt-cred-mech --stale-nonce=600 --no-multicast-peers --no-tcp-relay'
+      --fingerprint --stale-nonce=600 --no-multicast-peers --no-tcp-relay'
     ports:
       - "3478:3478/tcp"
       - "3478:3478/udp"
