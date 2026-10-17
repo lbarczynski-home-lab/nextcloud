@@ -184,7 +184,7 @@ services:
       - "wud.link.template=https://github.com/redis/redis/releases/tag/$${major}.$${minor}.$${patch}"
     env_file:
       - envs/redis.env
-    command: /bin/sh -c 'exec redis-server --requirepass "$$REDIS_HOST_PASSWORD" --maxmemory 128mb --maxmemory-policy allkeys-lru'
+    command: /bin/sh -c 'exec redis-server --requirepass "$$REDIS_HOST_PASSWORD" --maxmemory 512mb --maxmemory-policy allkeys-lru'
     volumes:
       - redis_data:/data
     networks:
