@@ -299,7 +299,6 @@ configure_previews() {
         "OC\Preview\Movie"
         "OC\Preview\HEIC"
         "OC\Preview\WebP"
-        "OC\Preview\SVG"
     )
 
     set_system_list enabledPreviewProviders "${providers[@]}"
