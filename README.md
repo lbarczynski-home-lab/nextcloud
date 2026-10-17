@@ -13,6 +13,7 @@ Self-hosted enterprise private cloud storage and collaborative office suite powe
 - **Communication**: Nextcloud Talk with Coturn STUN/TURN integration for WebRTC audio/video calls.
 - **AI Integrations**: Nextcloud Assistant (LLM integration) and Recognize for local machine learning photo classification and facial recognition.
 - **Context Chat**: Chat with the content of your own files (e.g. "find invoices over 1000 PLN paid in cash"), via AppAPI + HaRP running the `context_chat_backend` ExApp, using the same external OpenAI-compatible endpoint as the Assistant for both completions and embeddings — no local embedding model or GPU required.
+- **Context Agent**: Gives the Assistant chat tools to act on your Nextcloud — ask Context Chat, browse and read files, search, calendar, tasks, Talk, mail — so a plain chat question like "find my invoice for the game console" is answered from your own data. Runs as an ExApp via the same HaRP daemon on the external endpoint (tool calling); actions that change data wait for confirmation in the chat.
 - **Security & Antivirus**: ClamAV daemon for automated signature updates and streaming file scan on upload.
 - **High Performance Push**: `notify_push` backend for instant desktop and mobile WebSocket sync.
 - **High-Performance Image Previews**: Dedicated Imaginary microservice powered by `libvips` for accelerated on-demand photo and thumbnail generation in Nextcloud Memories.

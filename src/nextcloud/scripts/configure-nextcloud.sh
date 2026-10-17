@@ -207,6 +207,22 @@ configure_context_chat_stack() {
     occ_cmd config:app:set context_chat auto_indexing --value='true' --type=string 2>/dev/null || true
 }
 
+# Gives the Assistant's chat tools (Context Chat, files, calendar, mail,
+# ...) instead of a bare model. Runs on the HaRP daemon registered above
+# and needs an LLM with tool calling, which the external endpoint has.
+# Tools that change data wait for the user's confirmation in the chat.
+configure_context_agent() {
+    log_info "Configuring Context Agent (Assistant chat tools)..."
+
+    if ! occ_cmd app_api:app:list 2>/dev/null | grep -q "context_agent"; then
+        log_info " - Registering context_agent from the appstore..."
+        if ! occ_cmd app_api:app:register context_agent harp_docker --wait-finish --no-interaction; then
+            log_error "Failed to register context_agent"
+            return 1
+        fi
+    fi
+}
+
 configure_recognize_defaults() {
     log_info "Applying default Recognize feature toggles where not already set..."
 
@@ -477,6 +493,7 @@ main() {
     configure_recognize_defaults
     configure_oidc || { log_error "OIDC provider configuration failed — will retry on next restart."; had_failures=1; }
     configure_context_chat_stack || { log_error "Context Chat stack configuration failed — will retry on next restart."; had_failures=1; }
+    configure_context_agent || { log_error "Context Agent configuration failed — will retry on next restart."; had_failures=1; }
     configure_antivirus
     configure_fulltextsearch_backend
     configure_talk
