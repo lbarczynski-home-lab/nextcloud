@@ -159,7 +159,7 @@ reconcile_applications() {
     fi
 }
 
-# Order matters: AppAPI -> backend -> frontend. Backend/frontend beta
+# Order matters: AppAPI -> backend -> frontend. Backend/frontend
 # versions must match major.minor. Embeddings point at the same external
 # endpoint integration_openai uses, so no local model is needed.
 configure_context_chat_stack() {
@@ -182,9 +182,9 @@ configure_context_chat_stack() {
     fi
 
     if ! occ_cmd app_api:app:list 2>/dev/null | grep -q "context_chat_backend"; then
-        log_info " - Registering context_chat_backend (v5.5.0-beta1, matching context_chat's beta)..."
+        log_info " - Registering context_chat_backend (v5.5.0, matching context_chat)..."
         if ! occ_cmd app_api:app:register context_chat_backend harp_docker \
-            --info-xml "https://raw.githubusercontent.com/nextcloud/context_chat_backend/v5.5.0-beta1/appinfo/info.xml" \
+            --info-xml "https://raw.githubusercontent.com/nextcloud/context_chat_backend/v5.5.0/appinfo/info.xml" \
             --env "CC_EM_BASE_URL=${AI_API_BASE_URL}" \
             --env "CC_EM_MODEL_NAME=models/gemini-embedding-001" \
             --env "CC_EM_APIKEY=${AI_API_KEY}" \
@@ -195,8 +195,8 @@ configure_context_chat_stack() {
     fi
 
     if ! occ_cmd app:list --output=json 2>/dev/null | jq -e '(.enabled // {}) + (.disabled // {}) | has("context_chat")' >/dev/null; then
-        log_info " - Installing context_chat (beta — NC35 fix not yet stable)..."
-        if ! occ_cmd app:install context_chat --allow-unstable --no-interaction; then
+        log_info " - Installing context_chat..."
+        if ! occ_cmd app:install context_chat --no-interaction; then
             log_error "Failed to install context_chat"
             return 1
         fi
