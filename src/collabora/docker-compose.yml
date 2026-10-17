@@ -1,6 +1,10 @@
 services:
   collabora:
-    build: .
+    build:
+      context: .
+      # The local image reuses the upstream tag (for WUD), so without an
+      # explicit pull FROM would resolve to our own previous build.
+      pull: true
     image: collabora/code:26.04.4.2.1
     container_name: collabora
     labels:
