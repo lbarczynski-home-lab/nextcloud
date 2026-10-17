@@ -11,3 +11,21 @@ set_default_if_unset() {
         occ_cmd config:app:set "$app" "$key" --value="$value"
     fi
 }
+
+# Sets a list-valued system key to exactly the given values. Setting
+# indices alone would leave stale trailing entries behind whenever the
+# list shrinks, so anything past the new end is deleted afterwards.
+set_system_list() {
+    local key="$1"
+    shift
+    local idx=0
+    local value
+    for value in "$@"; do
+        occ_cmd config:system:set "$key" "$idx" --value="$value"
+        idx=$((idx + 1))
+    done
+    while occ_cmd config:system:get "$key" "$idx" >/dev/null 2>&1; do
+        occ_cmd config:system:delete "$key" "$idx"
+        idx=$((idx + 1))
+    done
+}

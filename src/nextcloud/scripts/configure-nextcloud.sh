@@ -131,11 +131,7 @@ reconcile_applications() {
         quota_warning
         duplicatefinder
     )
-    local o_idx=0
-    for app in "${overwrite_apps[@]}"; do
-        occ_cmd config:system:set app_install_overwrite "$o_idx" --value="$app"
-        o_idx=$((o_idx + 1))
-    done
+    set_system_list app_install_overwrite "${overwrite_apps[@]}"
 
     local present_ids
     present_ids=$(occ_cmd app:list --output=json 2>/dev/null | jq -r '(.enabled // {} | keys) + (.disabled // {} | keys) | .[]')
@@ -251,14 +247,11 @@ configure_system() {
     # See reconcile_applications() for why 2FA is disabled entirely.
     occ_cmd twofactorauth:enforce --off --no-interaction 2>/dev/null || true
 
-    local idx=0
-    for proxy in $TRUSTED_PROXIES; do
-        occ_cmd config:system:set trusted_proxies "$idx" --value="$proxy"
-        idx=$((idx + 1))
-    done
+    local trusted_proxies
+    read -ra trusted_proxies <<<"$TRUSTED_PROXIES"
+    set_system_list trusted_proxies "${trusted_proxies[@]}"
 
-    occ_cmd config:system:set forwarded_for_headers 0 --value="HTTP_CF_CONNECTING_IP"
-    occ_cmd config:system:set forwarded_for_headers 1 --value="HTTP_X_FORWARDED_FOR"
+    set_system_list forwarded_for_headers "HTTP_CF_CONNECTING_IP" "HTTP_X_FORWARDED_FOR"
 
     occ_cmd config:system:set max_chunk_size --type=integer --value=52428800
     occ_cmd config:app:set files max_chunk_size --value="52428800"
@@ -309,11 +302,7 @@ configure_previews() {
         "OC\Preview\SVG"
     )
 
-    local idx=0
-    for provider in "${providers[@]}"; do
-        occ_cmd config:system:set enabledPreviewProviders "$idx" --value="$provider"
-        idx=$((idx + 1))
-    done
+    set_system_list enabledPreviewProviders "${providers[@]}"
 
     occ_cmd config:app:set previewgenerator squareSizes --value="64 128 256 512"
     occ_cmd config:app:set previewgenerator widthSizes --value="64 128 256 512 1024 1920"
