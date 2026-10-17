@@ -46,8 +46,6 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-      tika:
-        condition: service_healthy
       coturn:
         condition: service_healthy
       imaginary:
@@ -248,26 +246,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 90s
-    restart: unless-stopped
-
-  tika:
-    image: apache/tika:3.3.1.0-full
-    container_name: nextcloud_tika
-    labels:
-      - 'wud.watch=true'
-      - 'wud.display.name=Apache Tika'
-      - 'wud.display.icon=si:apache'
-      - 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-full$$'
-      - "wud.link.template=https://github.com/apache/tika/releases"
-    networks:
-      - nextcloud_internal
-    healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:9998/version" ]
-      interval: 30s
-      start_interval: 5s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
     restart: unless-stopped
 
   imaginary:
