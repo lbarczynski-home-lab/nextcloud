@@ -102,6 +102,13 @@ verify:nextcloud:config-reconciliation:
     - echo "🔵 Re-running configuration reconciliation to verify the deployment..."
     - $CMD_PREFIX "sh -lc 'docker exec nextcloud /scripts/configure-nextcloud.sh'"
 
+.coturn-init:
+  script:
+    - |
+      DNS_RECORD_CONTENT=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)
+      export DNS_RECORD_CONTENT
+      log_info "Resolved public router IP for Coturn: $DNS_RECORD_CONTENT"
+
 deploy:nextcloud:update-coturn-dns:
   stage: deploy
   extends: .base:image:alpine
@@ -117,9 +124,7 @@ deploy:nextcloud:update-coturn-dns:
     DNS_RECORD_TTL: 120
     DNS_RECORD_PROXIED: "false"
   script:
-    - DNS_RECORD_CONTENT=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)
-    - export DNS_RECORD_CONTENT
-    - log_info "Resolved public router IP for Coturn: $DNS_RECORD_CONTENT"
+    - !reference [.coturn-init, script]
     - !reference [.base:dns:cloudflare:record:find, script]
     - !reference [.base:dns:cloudflare:record:create, script]
     - !reference [.base:dns:cloudflare:record:update, script]
