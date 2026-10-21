@@ -104,19 +104,22 @@ verify:nextcloud:config-reconciliation:
 
 deploy:nextcloud:update-coturn-dns:
   stage: deploy
-  image: alpine:3.24.2
+  extends: .base:image:alpine
   needs:
     - "deploy:nextcloud:start-service"
   rules:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
   variables:
+    CF_ZONE_ID: "$CLOUDFLARE_ZONE_ID"
+    CF_API_TOKEN: "$CLOUDFLARE_DNS_API_TOKEN"
+    DNS_RECORD_NAME: "talk.nextcloud.xbhl.online"
     DNS_RECORD_TYPE: "A"
-    DNS_TTL: 120
-    DNS_PROXIED: "false"
-    CLOUDFLARE_DNS_ENTRY_NAME: "talk.nextcloud.xbhl.online"
-  before_script:
-    - apk add --no-cache curl jq
+    DNS_RECORD_TTL: 120
+    DNS_RECORD_PROXIED: "false"
   script:
-    - 'export DNS_CONTENT=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)'
-    - 'echo "Resolved public router IP for Coturn: $DNS_CONTENT"'
-    - !reference [.cloudflare-update-script, script]
+    - DNS_RECORD_CONTENT=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)
+    - export DNS_RECORD_CONTENT
+    - log_info "Resolved public router IP for Coturn: $DNS_RECORD_CONTENT"
+    - !reference [.base:dns:cloudflare:record:find, script]
+    - !reference [.base:dns:cloudflare:record:create, script]
+    - !reference [.base:dns:cloudflare:record:update, script]
