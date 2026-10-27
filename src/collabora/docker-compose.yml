@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.10.4
+    image: cloudflare/cloudflared:2026.10.5
     container_name: collabora_cloudflared
     labels:
       - 'wud.watch=true'
