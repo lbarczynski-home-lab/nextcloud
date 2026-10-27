@@ -1,5 +1,8 @@
+variables:
+  AUTOMATIONS_VERSION: "v2.1.4"
+
 include:
-  - component: $CI_SERVER_FQDN/home-lab/automations/docker-compose-service-deployment@v2.1.0
+  - component: $CI_SERVER_FQDN/home-lab/automations/docker-compose-service-deployment@$AUTOMATIONS_VERSION
     inputs:
       vm-hostname: cloud.vm.xbhl.intranet
       vm-ssh-username: $SSH_USER
@@ -17,7 +20,7 @@ include:
       container-healthcheck-delay: 360
       delete-existing-container-files: true
 
-  - component: $CI_SERVER_FQDN/home-lab/automations/docker-compose-service-deployment@v2.1.0
+  - component: $CI_SERVER_FQDN/home-lab/automations/docker-compose-service-deployment@$AUTOMATIONS_VERSION
     inputs:
       vm-hostname: cloud.vm.xbhl.intranet
       vm-ssh-username: $SSH_USER
