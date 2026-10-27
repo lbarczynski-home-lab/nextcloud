@@ -1,0 +1,30 @@
+include:
+  - component: $CI_SERVER_FQDN/home-lab/automations/docker-compose-service-deployment@$AUTOMATIONS_VERSION
+    inputs:
+      vm-hostname: cloud.vm.xbhl.intranet
+      vm-ssh-username: $SSH_USER
+      vm-ssh-private-key: $SSH_PRIVATE_KEY
+      service-name: collabora
+      container-name: collabora
+      container-location: /opt/containers/collabora
+      source-files-path: "src/collabora"
+      additional-files-path: ".collabora_generated_sources"
+      cloudflare-dns-entry-name: office.xbhl.online
+      cloudflare-dns-strategy: tunnel
+      cloudflare-tunnel-uuid: $OFFICE_CLOUDFLARE_TUNNEL_UUID
+      cloudflare-zone-id: $CLOUDFLARE_ZONE_ID
+      cloudflare-dns-api-token: $CLOUDFLARE_DNS_API_TOKEN
+      delete-existing-container-files: true
+
+setup:generate-build-artifacts:
+  script:
+    - 'apk add --no-cache bash jq'
+    - 'mkdir -p .collabora_generated_sources/envs .collabora_generated_sources/cloudflared-config'
+    - 'cp -r src/collabora/envs/. .collabora_generated_sources/envs/'
+    - 'cp -r src/collabora/cloudflared-config/. .collabora_generated_sources/cloudflared-config/'
+    - './scripts/generate-cloudflare-tunnel-credentials.sh -t "${OFFICE_CLOUDFLARE_TUNNEL_TOKEN:?OFFICE_CLOUDFLARE_TUNNEL_TOKEN is not set}" -o .collabora_generated_sources/cloudflared-config/credentials.json'
+    - 'sed -i "s|^tunnel:.*|tunnel: ${OFFICE_CLOUDFLARE_TUNNEL_UUID:?OFFICE_CLOUDFLARE_TUNNEL_UUID is not set}|" .collabora_generated_sources/cloudflared-config/config.yml'
+  artifacts:
+    paths:
+      - .collabora_generated_sources/
+      - $BUILD_ARTIFACTS_DIR/

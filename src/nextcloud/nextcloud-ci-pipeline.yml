@@ -1,0 +1,106 @@
+include:
+  - component: $CI_SERVER_FQDN/home-lab/automations/docker-compose-service-deployment@$AUTOMATIONS_VERSION
+    inputs:
+      vm-hostname: cloud.vm.xbhl.intranet
+      vm-ssh-username: $SSH_USER
+      vm-ssh-private-key: $SSH_PRIVATE_KEY
+      service-name: nextcloud
+      container-name: nextcloud
+      container-location: /opt/containers/nextcloud
+      source-files-path: "src/nextcloud"
+      additional-files-path: ".nextcloud_generated_sources"
+      cloudflare-dns-entry-name: nextcloud.xbhl.online
+      cloudflare-dns-strategy: tunnel
+      cloudflare-tunnel-uuid: $NEXTCLOUD_CLOUDFLARE_TUNNEL_UUID
+      cloudflare-zone-id: $CLOUDFLARE_ZONE_ID
+      cloudflare-dns-api-token: $CLOUDFLARE_DNS_API_TOKEN
+      container-healthcheck-delay: 360
+      delete-existing-container-files: true
+
+test:nextcloud:docker-compose:
+  before_script:
+    - docker run --rm -v /tmp:/mnt alpine rm -rf /mnt/nextcloud-test-data
+    - docker run --rm -v /tmp/nextcloud-test-data:/tmp/nextcloud-test-data alpine true
+  variables:
+    NEXTCLOUD_STORAGE_DRIVER_TYPE: "none"
+    NEXTCLOUD_STORAGE_DRIVER_OPTS: "bind"
+    NEXTCLOUD_STORAGE_DEVICE: "/tmp/nextcloud-test-data"
+
+test:nextcloud:shell-syntax:
+  stage: test
+  image: alpine:3.24.3
+  before_script:
+    - apk add --no-cache bash
+  script:
+    - |
+      exit_status=0
+      for file in $(find scripts src/nextcloud/scripts -name '*.sh'); do
+        echo "Checking ${file}"
+        bash -n "${file}" || exit_status=1
+      done
+      exit "${exit_status}"
+
+setup:generate-build-artifacts:
+  script:
+    - 'apk add --no-cache bash jq'
+    # Nextcloud generated sources
+    - 'mkdir -p .nextcloud_generated_sources/envs .nextcloud_generated_sources/cloudflared-config'
+    - 'cp -r src/nextcloud/envs/. .nextcloud_generated_sources/envs/'
+    - 'cp -r src/nextcloud/cloudflared-config/. .nextcloud_generated_sources/cloudflared-config/'
+    - './scripts/generate-cloudflare-tunnel-credentials.sh -t "${NEXTCLOUD_CLOUDFLARE_TUNNEL_TOKEN:?NEXTCLOUD_CLOUDFLARE_TUNNEL_TOKEN is not set}" -o .nextcloud_generated_sources/cloudflared-config/credentials.json'
+    - 'sed -i "s|^tunnel:.*|tunnel: ${NEXTCLOUD_CLOUDFLARE_TUNNEL_UUID:?NEXTCLOUD_CLOUDFLARE_TUNNEL_UUID is not set}|" .nextcloud_generated_sources/cloudflared-config/config.yml'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/nextcloud.env NEXTCLOUD_ADMIN_PASSWORD "${NEXTCLOUD_ADMIN_PASSWORD:?NEXTCLOUD_ADMIN_PASSWORD is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/db.env POSTGRES_PASSWORD "${NEXTCLOUD_DB_PASSWORD:?NEXTCLOUD_DB_PASSWORD is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/redis.env REDIS_HOST_PASSWORD "${NEXTCLOUD_REDIS_PASSWORD:?NEXTCLOUD_REDIS_PASSWORD is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/oidc.env OIDC_CLIENT_SECRET "${NEXTCLOUD_OAUTH_CLIENT_SECRET:?NEXTCLOUD_OAUTH_CLIENT_SECRET is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/ai.env AI_API_KEY "${OPEN_WEBUI_API_KEY:?OPEN_WEBUI_API_KEY is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/smtp.env SMTP_HOST "${SMTP_HOST:?SMTP_HOST is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/smtp.env SMTP_PORT "${SMTP_PORT:?SMTP_PORT is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/smtp.env SMTP_USERNAME "${SMTP_USERNAME:?SMTP_USERNAME is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/smtp.env SMTP_PASSWORD "${SMTP_PASSWORD:?SMTP_PASSWORD is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/smtp.env SMTP_FROM "${SMTP_FROM:?SMTP_FROM is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/talk.env COTURN_SECRET "${NEXTCLOUD_COTURN_SECRET:?NEXTCLOUD_COTURN_SECRET is not set}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/api-keys.env GIPHY_API_KEY "${GIPHY_API_KEY:-}"'
+    - './scripts/set-env-value.sh .nextcloud_generated_sources/envs/appapi.env HP_SHARED_KEY "${NEXTCLOUD_APPAPI_HARP_SHARED_KEY:?NEXTCLOUD_APPAPI_HARP_SHARED_KEY is not set}"'
+  artifacts:
+    paths:
+      - .nextcloud_generated_sources/
+      - $BUILD_ARTIFACTS_DIR/
+
+verify:nextcloud:config-reconciliation:
+  stage: verify
+  extends: .ssh-job-base:nextcloud
+  needs:
+    - "deploy:nextcloud:start-service"
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  script:
+    - echo "🔵 Re-running configuration reconciliation to verify the deployment..."
+    - $CMD_PREFIX "sh -lc 'docker exec nextcloud /scripts/configure-nextcloud.sh'"
+
+.coturn-init:
+  script:
+    - |
+      DNS_RECORD_CONTENT=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)
+      export DNS_RECORD_CONTENT
+      log_info "Resolved public router IP for Coturn: $DNS_RECORD_CONTENT"
+
+deploy:nextcloud:update-coturn-dns:
+  stage: deploy
+  extends: .base:image:alpine
+  needs:
+    - "deploy:nextcloud:start-service"
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  variables:
+    CF_ZONE_ID: "$CLOUDFLARE_ZONE_ID"
+    CF_API_TOKEN: "$CLOUDFLARE_DNS_API_TOKEN"
+    DNS_RECORD_NAME: "talk.nextcloud.xbhl.online"
+    DNS_RECORD_TYPE: "A"
+    DNS_RECORD_TTL: 120
+    DNS_RECORD_PROXIED: "false"
+  script:
+    - !reference [.coturn-init, script]
+    - !reference [.base:dns:cloudflare:record:find, script]
+    - !reference [.base:dns:cloudflare:record:create, script]
+    - !reference [.base:dns:cloudflare:record:update, script]
