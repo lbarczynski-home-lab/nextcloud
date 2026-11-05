@@ -7,9 +7,17 @@ set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common/logger.sh"
+source "$SCRIPT_DIR/common/lock.sh"
 source "$SCRIPT_DIR/common/occ.sh"
 source "$SCRIPT_DIR/common/config.sh"
 source "$SCRIPT_DIR/common/security.sh"
+
+source "$SCRIPT_DIR/configure/apps.sh"
+source "$SCRIPT_DIR/configure/system.sh"
+source "$SCRIPT_DIR/configure/auth.sh"
+source "$SCRIPT_DIR/configure/media.sh"
+source "$SCRIPT_DIR/configure/integrations.sh"
+source "$SCRIPT_DIR/configure/ai.sh"
 
 validate_environment() {
     log_info "Validating required environment variables..."
@@ -43,6 +51,7 @@ validate_environment() {
     )
 
     local missing_vars=()
+    local var
     for var in "${required_vars[@]}"; do
         if [ -z "${!var:-}" ]; then
             missing_vars+=("$var")
@@ -55,435 +64,14 @@ validate_environment() {
     fi
 }
 
-reconcile_applications() {
-    log_info "Reconciling installed applications against desired state..."
-
-    local desired_apps=(
-        # Authentication & Security
-        admin_audit
-        bruteforcesettings
-        files_antivirus
-        suspicious_login
-        user_oidc
-
-        # AI & Smart Features
-        assistant
-        integration_openai
-        recognize
-
-        # Search & Indexing (Full-Text Search)
-        files_fulltextsearch
-        files_fulltextsearch_metadata
-        fulltextsearch
-        fulltextsearch_elasticsearch
-
-        # File Management & Storage
-        files_automatedtagging
-        files_retention
-        groupfolders
-        previewgenerator
-        quota_warning
-
-        # Collaboration & Office
-        bookmarks
-        calendar
-        contacts
-        deck
-        drawio
-        forms
-        mail
-        notes
-        richdocuments
-        spreed
-        tasks
-
-        # Media & Viewers
-        epubviewer
-        memories
-        duplicatefinder
-
-        # UI & Navigation Integrations
-        integration_giphy
-        maps
-        news
-        notify_push
-        side_menu
-    )
-
-    # Two-factor auth is handled upstream by Authelia (LDAP-backed MFA) — no
-    # 2FA method may be selectable from within Nextcloud itself.
-    local unwanted_apps=(
-        cospend
-        dicomviewer
-        encryption
-        external
-        registration
-        user_ldap
-        twofactor_totp
-        twofactor_nextcloud_notification
-        twofactor_backupcodes
-    )
-
-    log_info "Configuring app version compatibility overwrite whitelist (temporary, pending NC35 app compat)..."
-    local overwrite_apps=(
-        files_fulltextsearch_metadata
-    )
-    set_system_list app_install_overwrite "${overwrite_apps[@]}"
-
-    local present_ids
-    present_ids=$(occ_cmd app:list --output=json 2>/dev/null | jq -r '(.enabled // {} | keys) + (.disabled // {} | keys) | .[]')
-
-    local failed_installs=()
-    for app in "${desired_apps[@]}"; do
-        if ! list_contains "$app" "$present_ids"; then
-            log_info " - Installing missing app: $app"
-            if ! occ_cmd app:install "$app" --no-interaction; then
-                failed_installs+=("$app")
-            fi
-        fi
-    done
-
-    for app in "${unwanted_apps[@]}"; do
-        if list_contains "$app" "$present_ids"; then
-            log_info " - Removing unwanted app: $app"
-            occ_cmd app:disable "$app" --no-interaction 2>/dev/null || true
-            # app:remove fails permanently (and harmlessly) for shipped/core
-            # apps, which occ only ever allows disabling, not removing.
-            occ_cmd app:remove "$app" --no-interaction 2>/dev/null || true
-        fi
-    done
-
-    if [ "${#failed_installs[@]}" -gt 0 ]; then
-        log_error "Failed to install app(s): ${failed_installs[*]}"
-        return 1
-    fi
-}
-
-# Order matters: AppAPI -> backend -> frontend. Backend/frontend
-# versions must match major.minor. Embeddings point at the same external
-# endpoint integration_openai uses, so no local model is needed.
-configure_context_chat_stack() {
-    log_info "Configuring Context Chat (AppAPI, HaRP, backend, frontend)..."
-
-    occ_cmd app:install app_api --no-interaction 2>/dev/null || true
-    occ_cmd app:enable app_api --no-interaction 2>/dev/null || true
-
-    if ! occ_cmd app_api:daemon:list 2>/dev/null | grep -q "harp_docker"; then
-        log_info " - Registering HaRP deploy daemon..."
-        if ! occ_cmd app_api:daemon:register harp_docker "AppAPI HaRP" "docker-install" "http" \
-            "appapi-harp:8780" "https://${OVERWRITEHOST}" \
-            --net nextcloud_internal_network --harp \
-            --harp_frp_address "appapi-harp:8782" \
-            --harp_shared_key "$HP_SHARED_KEY" \
-            --set-default --no-interaction; then
-            log_error "Failed to register the HaRP deploy daemon"
-            return 1
-        fi
-    fi
-
-    if ! occ_cmd app_api:app:list 2>/dev/null | grep -q "context_chat_backend"; then
-        log_info " - Registering context_chat_backend (v5.5.0, matching context_chat)..."
-        if ! occ_cmd app_api:app:register context_chat_backend harp_docker \
-            --info-xml "https://raw.githubusercontent.com/nextcloud/context_chat_backend/v5.5.0/appinfo/info.xml" \
-            --env "CC_EM_BASE_URL=${AI_API_BASE_URL}" \
-            --env "CC_EM_MODEL_NAME=models/gemini-embedding-001" \
-            --env "CC_EM_APIKEY=${AI_API_KEY}" \
-            --wait-finish --no-interaction; then
-            log_error "Failed to register context_chat_backend"
-            return 1
-        fi
-    fi
-
-    if ! occ_cmd app:list --output=json 2>/dev/null | jq -e '(.enabled // {}) + (.disabled // {}) | has("context_chat")' >/dev/null; then
-        log_info " - Installing context_chat..."
-        if ! occ_cmd app:install context_chat --no-interaction; then
-            log_error "Failed to install context_chat"
-            return 1
-        fi
-    fi
-
-    # Without this, context_chat never automatically indexes files into the
-    # backend's vector database — queries would have nothing to search.
-    occ_cmd config:app:set context_chat auto_indexing --value='true' --type=string 2>/dev/null || true
-}
-
-# Gives the Assistant's chat tools (Context Chat, files, calendar, mail,
-# ...) instead of a bare model. Runs on the HaRP daemon registered above
-# and needs an LLM with tool calling, which the external endpoint has.
-# Tools that change data wait for the user's confirmation in the chat.
-configure_context_agent() {
-    log_info "Configuring Context Agent (Assistant chat tools)..."
-
-    if ! occ_cmd app_api:app:list 2>/dev/null | grep -q "context_agent"; then
-        log_info " - Registering context_agent from the appstore..."
-        if ! occ_cmd app_api:app:register context_agent harp_docker --wait-finish --no-interaction; then
-            log_error "Failed to register context_agent"
-            return 1
-        fi
-    fi
-}
-
-configure_recognize_defaults() {
-    log_info "Applying default Recognize feature toggles where not already set..."
-
-    set_default_if_unset recognize face_recognition_enabled 1
-    set_default_if_unset recognize object_recognition_enabled 1
-    set_default_if_unset recognize landmark_recognition_enabled 1
-    set_default_if_unset recognize music_recognition_enabled 1
-    set_default_if_unset recognize video_recognition_enabled 1
-}
-
-configure_system() {
-    local trashbin_retention="${NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION:?NEXTCLOUD_TRASHBIN_RETENTION_OBLIGATION is not set}"
-    local versions_retention="${NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION:?NEXTCLOUD_VERSIONS_RETENTION_OBLIGATION is not set}"
-    local default_language="${NC_default_language:?NC_default_language is not set}"
-    local default_locale="${NC_default_locale:?NC_default_locale is not set}"
-    local default_phone_region="${NC_default_phone_region:?NC_default_phone_region is not set}"
-
-    log_info "Configuring system, network, locale, and chunking parameters..."
-
-    occ_cmd config:system:set default_language --value="$default_language"
-    occ_cmd config:system:set default_locale --value="$default_locale"
-    occ_cmd config:system:set default_phone_region --value="$default_phone_region"
-    occ_cmd config:system:set maintenance_window_start --type=integer --value=1
-    occ_cmd config:system:set overwriteprotocol --value="https"
-    occ_cmd config:system:set overwritehost --value="$OVERWRITEHOST"
-    occ_cmd config:system:set overwrite.cli.url --value="https://${OVERWRITEHOST}"
-    occ_cmd config:system:set hide_login_form --type=boolean --value=true
-    occ_cmd config:system:set lost_password_link --value="disabled"
-    occ_cmd config:system:set allow_user_to_change_display_name --type=boolean --value=false
-    occ_cmd config:system:set serverid --type=integer --value=1
-    occ_cmd config:system:set server_id --value="pve-01-cloud-vm"
-    occ_cmd config:system:set trashbin_retention_obligation --value="$trashbin_retention"
-    occ_cmd config:system:set versions_retention_obligation --value="$versions_retention"
-
-    # See reconcile_applications() for why 2FA is disabled entirely.
-    occ_cmd twofactorauth:enforce --off --no-interaction 2>/dev/null || true
-
-    local trusted_proxies
-    read -ra trusted_proxies <<<"$TRUSTED_PROXIES"
-    set_system_list trusted_proxies "${trusted_proxies[@]}"
-
-    set_system_list forwarded_for_headers "HTTP_CF_CONNECTING_IP" "HTTP_X_FORWARDED_FOR"
-
-    occ_cmd config:system:set max_chunk_size --type=integer --value=52428800
-    occ_cmd config:app:set files max_chunk_size --value="52428800"
-    occ_cmd config:app:set dav max_chunk_size --value="52428800"
-
-    occ_cmd background:cron
-}
-
-configure_caching() {
-    log_info "Configuring APCu and Redis caching..."
-
-    occ_cmd config:system:set filelocking.enabled --type=boolean --value=true
-    occ_cmd config:system:set memcache.local --value="\OC\Memcache\APCu"
-    occ_cmd config:system:set memcache.distributed --value="\OC\Memcache\Redis"
-    occ_cmd config:system:set memcache.locking --value="\OC\Memcache\Redis"
-
-    occ_cmd config:system:set redis host --value="$REDIS_HOST"
-    occ_cmd config:system:set redis port --type=integer --value="$REDIS_HOST_PORT"
-    occ_cmd config:system:set redis password --value="$REDIS_HOST_PASSWORD"
-    occ_cmd config:system:set redis timeout --type=float --value=1.5
-}
-
-configure_previews() {
-    log_info "Configuring preview providers, Imaginary service, and dimensions..."
-
-    occ_cmd config:system:set enable_previews --type=boolean --value=true
-    occ_cmd config:system:set preview_imaginary_url --value="http://imaginary:9000"
-    occ_cmd config:system:set preview_concurrency_all --type=integer --value=8
-    occ_cmd config:system:set preview_concurrency_new --type=integer --value=4
-    occ_cmd config:system:set preview_max_x --type=integer --value=2048
-    occ_cmd config:system:set preview_max_y --type=integer --value=2048
-    occ_cmd config:system:set preview_max_filesize_image --type=integer --value=50
-
-    local providers=(
-        "OC\Preview\Imaginary"
-        "OC\Preview\PNG"
-        "OC\Preview\JPEG"
-        "OC\Preview\GIF"
-        "OC\Preview\BMP"
-        "OC\Preview\XBitmap"
-        "OC\Preview\MP3"
-        "OC\Preview\TXT"
-        "OC\Preview\MarkDown"
-        "OC\Preview\PDF"
-        "OC\Preview\Movie"
-        "OC\Preview\HEIC"
-        "OC\Preview\WebP"
-    )
-
-    set_system_list enabledPreviewProviders "${providers[@]}"
-
-    occ_cmd config:app:set previewgenerator squareSizes --value="64 128 256 512"
-    occ_cmd config:app:set previewgenerator widthSizes --value="64 128 256 512 1024 1920"
-    occ_cmd config:app:set previewgenerator heightSizes --value="64 128 256 512 1024 1080"
-}
-
-configure_office() {
-    log_info "Configuring Nextcloud Office (Collabora Online at https://office.xbhl.online)..."
-
-    occ_cmd app:enable richdocuments --no-interaction 2>/dev/null || true
-    occ_cmd config:app:set richdocuments wopi_url --value="https://office.xbhl.online"
-    occ_cmd config:app:set richdocuments public_wopi_url --value="https://office.xbhl.online"
-    occ_cmd config:app:set richdocuments doc_format --value="ooxml"
-    occ_cmd richdocuments:activate-config --no-interaction 2>/dev/null || true
-}
-
-configure_memories() {
-    log_info "Configuring Nextcloud Memories..."
-
-    occ_cmd config:app:delete memories vod.external 2>/dev/null || true
-    occ_cmd config:app:set memories vod.ffmpeg --value="/usr/bin/ffmpeg"
-    occ_cmd config:app:set memories vod.ffprobe --value="/usr/bin/ffprobe"
-    occ_cmd config:app:set memories exiftool --value="/usr/bin/exiftool"
-}
-
-configure_oidc() {
-    log_info "Configuring Authelia OIDC identity provider (xbhl.online)..."
-
-    occ_cmd user_oidc:provider "xbhl.online" \
-        --clientid="$OIDC_CLIENT_ID" \
-        --clientsecret="$OIDC_CLIENT_SECRET" \
-        --discoveryuri="$OIDC_PROVIDER_URL" \
-        --scope="openid profile email groups" \
-        --mapping-uid="preferred_username" \
-        --mapping-email="email" \
-        --mapping-display-name="name" \
-        --unique-uid=0 \
-        --check-bearer=1 \
-        --no-interaction
-
-    occ_cmd config:system:set user_oidc default_token_endpoint_auth_method --value="client_secret_post"
-    occ_cmd config:system:set user_oidc enrich_login_id_token_with_userinfo --type=boolean --value=true
-    occ_cmd config:app:set user_oidc allow_multiple_user_backends --value="0"
-    occ_cmd config:app:set user_oidc sync_user_details --value="1"
-}
-
-configure_antivirus() {
-    log_info "Configuring ClamAV Antivirus integration..."
-
-    occ_cmd config:app:set files_antivirus av_mode --value="daemon"
-    occ_cmd config:app:set files_antivirus av_host --value="clamav"
-    occ_cmd config:app:set files_antivirus av_port --value="3310"
-    occ_cmd config:app:set files_antivirus av_infected_action --value="delete"
-    # Bytes sent per INSTREAM session, not a file size cap: larger files are
-    # scanned in several passes. Must stay below clamd's StreamMaxLength
-    # (100M by default in the clamav image), or clamd aborts the stream.
-    occ_cmd config:app:set files_antivirus av_stream_max_length --value="100000000"
-}
-
-configure_fulltextsearch_backend() {
-    log_info "Configuring Elasticsearch Full-Text Search backend wiring..."
-
-    occ_cmd fulltextsearch:configure '{"search_platform":"OCA\\FullTextSearch_Elasticsearch\\Platform\\ElasticSearchPlatform"}' --no-interaction
-    occ_cmd fulltextsearch_elasticsearch:configure '{"elastic_host":"http://elasticsearch:9200","elastic_index":"nextcloud"}' --no-interaction
-    occ_cmd files_fulltextsearch:configure '{"files_metadata":"1","files_metadata_max_size":"100"}' --no-interaction 2>/dev/null || true
-    occ_cmd config:app:set files_fulltextsearch_metadata metadata_indexed --value="1"
-    occ_cmd config:app:set files_fulltextsearch_metadata files_metadata_max_size --value="100"
-    # Actual (re)indexing runs periodically from maintenance-worker.sh, not at container start.
-}
-
-configure_talk() {
-    log_info "Configuring Nextcloud Talk STUN and Coturn TURN servers (${COTURN_HOST})..."
-
-    occ_cmd config:app:set spreed stun_servers --value='["'"$COTURN_HOST"':3478","stun.nextcloud.com:443"]'
-    occ_cmd config:app:set spreed turn_servers --value='[{"server":"'"$COTURN_HOST"':3478","secret":"'"$COTURN_SECRET"'","protocols":"udp,tcp"}]'
-
-    if [ -n "${GIPHY_API_KEY:-}" ] && [ "$GIPHY_API_KEY" != "PLACEHOLDER" ]; then
-        log_info "Configuring Giphy API Key for Talk integration (rating=r: no content restriction)..."
-        occ_cmd config:app:set integration_giphy api_key --value="$GIPHY_API_KEY"
-        occ_cmd config:app:set integration_giphy rating_filter --value="r"
-    fi
-}
-
-configure_ai() {
-    local api_url="${AI_API_BASE_URL:?AI_API_BASE_URL is not set}"
-    local api_key="${AI_API_KEY:?AI_API_KEY is not set}"
-    local model="${AI_DEFAULT_MODEL:?AI_DEFAULT_MODEL is not set}"
-
-    log_info "Configuring AI Assistant integration (URL: ${api_url}, model: ${model})..."
-
-    occ_cmd config:app:set integration_openai url --value="$api_url"
-    occ_cmd config:app:set integration_openai api_url --value="$api_url"
-    occ_cmd config:app:set integration_openai api_key --value="$api_key"
-    occ_cmd config:app:set integration_openai name --value="OpenWebUI@XBHL.online"
-    occ_cmd config:app:set integration_openai service_name --value="OpenWebUI@XBHL.online"
-    occ_cmd config:app:set integration_openai default_completion_model_id --value="$model"
-    occ_cmd config:app:set integration_openai model --value="$model"
-    occ_cmd config:app:set integration_openai llm_provider_enabled --value="1"
-    occ_cmd config:app:set integration_openai chat_endpoint_enabled --value="1"
-    occ_cmd config:app:set integration_openai translation_provider_enabled --value="1"
-    occ_cmd config:app:set integration_openai free_prompts --value="1"
-    occ_cmd config:app:set integration_openai max_tokens --value="8192"
-    occ_cmd config:app:set integration_openai context_size --value="32768"
-}
-
-configure_smtp() {
-    log_info "Configuring SMTP mail settings..."
-
-    local from_user="${SMTP_FROM%@*}"
-    local from_domain="${SMTP_FROM#*@}"
-
-    occ_cmd config:system:set mail_smtpmode --value="smtp"
-    occ_cmd config:system:set mail_smtphost --value="$SMTP_HOST"
-    occ_cmd config:system:set mail_smtpport --type=integer --value="$SMTP_PORT"
-    occ_cmd config:system:set mail_smtpauth --type=integer --value=1
-    occ_cmd config:system:set mail_smtpauthtype --value="LOGIN"
-    occ_cmd config:system:set mail_smtpname --value="$SMTP_USERNAME"
-    occ_cmd config:system:set mail_smtppassword --value="$SMTP_PASSWORD"
-
-    if [ "$SMTP_PORT" = "465" ]; then
-        occ_cmd config:system:set mail_smtpsecure --value="ssl"
-    else
-        occ_cmd config:system:set mail_smtpsecure --value="tls"
-    fi
-
-    occ_cmd config:system:set mail_from_address --value="$from_user"
-    occ_cmd config:system:set mail_domain --value="$from_domain"
-}
-
-configure_client_push() {
-    log_info "Configuring Client Push (notify_push)..."
-
-    occ_cmd notify_push:setup "https://${OVERWRITEHOST}/push" --no-interaction
-}
-
-configure_security_baseline() {
-    log_info "Configuring Brute Force & Rate Limit Protection..."
-
-    occ_cmd config:system:set ratelimit.protection.enabled --type=boolean --value=true
-    occ_cmd config:app:set bruteforcesettings apply_allowlist_to_ratelimit --value="1"
-    refresh_security_whitelist
-}
-
-ensure_admin_privileges() {
-    log_info "Ensuring admin group exists and assigning ${NEXTCLOUD_MAIN_USER}..."
-
-    occ_cmd group:add admin --no-interaction 2>/dev/null || true
-    occ_cmd group:adduser admin "$NEXTCLOUD_MAIN_USER" --no-interaction 2>/dev/null || true
-
-    (
-        local attempts=0
-        while [ "$attempts" -lt 120 ]; do
-            if occ_cmd user:info "$NEXTCLOUD_MAIN_USER" >/dev/null 2>&1; then
-                occ_cmd group:adduser admin "$NEXTCLOUD_MAIN_USER" --no-interaction 2>/dev/null || true
-                log_info "User ${NEXTCLOUD_MAIN_USER} successfully assigned to admin group."
-                break
-            fi
-            attempts=$((attempts + 1))
-            sleep 10
-        done
-    ) &
-}
-
 main() {
     log_info "Reconciling Nextcloud runtime configuration..."
 
+    validate_environment
+    acquire_lock 1
+
     local had_failures=0
 
-    validate_environment
     reconcile_applications || had_failures=1
     configure_system
     configure_caching
@@ -502,6 +90,8 @@ main() {
     configure_client_push
     configure_security_baseline
     ensure_admin_privileges
+
+    release_lock
 
     if [ "$had_failures" -ne 0 ]; then
         log_error "Nextcloud runtime configuration reconciled with failures — see errors above."

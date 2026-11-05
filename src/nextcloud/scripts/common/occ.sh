@@ -7,5 +7,11 @@ occ_cmd() {
 }
 
 list_contains() {
-    grep -qx "$1" <<<"$2"
+    grep -Fqx -- "$1" <<<"$2"
+}
+
+is_app_present() {
+    local app_id="$1"
+    occ_cmd app:list --output=json 2>/dev/null |
+        jq -e --arg app "$app_id" '((.enabled // {}) + (.disabled // {})) | has($app)' >/dev/null 2>&1
 }
