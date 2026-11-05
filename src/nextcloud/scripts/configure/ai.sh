@@ -48,6 +48,7 @@ configure_context_chat_stack() {
         fi
     fi
 
+    local backend_registered=0
     if ! occ_cmd app_api:app:list 2>/dev/null | grep -q "context_chat_backend"; then
         log_info " - Registering context_chat_backend (v5.5.0, matching context_chat)..."
         if ! occ_cmd app_api:app:register context_chat_backend harp_docker \
@@ -59,6 +60,7 @@ configure_context_chat_stack() {
             log_error "Failed to register context_chat_backend"
             return 1
         fi
+        backend_registered=1
     fi
 
     if ! is_app_present context_chat; then
@@ -70,6 +72,9 @@ configure_context_chat_stack() {
     fi
 
     occ_cmd config:app:set context_chat auto_indexing --value='true' --type=string 2>/dev/null || true
+    if [ "$backend_registered" -eq 1 ]; then
+        occ_cmd context_chat:reindex >/dev/null 2>&1 || true
+    fi
 }
 
 configure_context_agent() {

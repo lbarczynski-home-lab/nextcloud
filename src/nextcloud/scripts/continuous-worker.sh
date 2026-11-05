@@ -3,6 +3,7 @@ set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common/logger.sh"
+source "$SCRIPT_DIR/common/lock.sh"
 source "$SCRIPT_DIR/common/occ.sh"
 source "$SCRIPT_DIR/common/readiness.sh"
 
@@ -13,6 +14,9 @@ trap 'log_info "Termination signal received. Exiting..."; exit 0' SIGTERM SIGINT
 
 while true; do
     if is_nextcloud_ready; then
+        # Wait if configure-nextcloud.sh is still reconciling oc_appconfig on startup
+        acquire_lock 1
+        release_lock
         occ_cmd taskprocessing:worker -v -t "$TIMEOUT" || true
         log_info "Worker finished or timed out, restarting in 2 seconds..."
         sleep 2
