@@ -27,7 +27,7 @@ services:
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
-      - scripts:/scripts
+      - scripts:/scripts:ro
     networks:
       - nextcloud_internal
     healthcheck:
@@ -50,22 +50,20 @@ services:
         condition: service_healthy
       imaginary:
         condition: service_healthy
+      appapi-harp:
+        condition: service_healthy
     restart: unless-stopped
 
   nextcloud_cron:
     build:
       context: .
-      pull: true
+    image: nextcloud:35.0.2-apache
     container_name: nextcloud_cron
     entrypoint: [ "/cron.sh" ]
     env_file:
       - envs/nextcloud.env
       - envs/db.env
       - envs/redis.env
-      - envs/oidc.env
-      - envs/ai.env
-      - envs/smtp.env
-      - envs/retention.env
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
@@ -83,21 +81,17 @@ services:
   nextcloud_maintenance_worker:
     build:
       context: .
-      pull: true
+    image: nextcloud:35.0.2-apache
     container_name: nextcloud_maintenance_worker
     entrypoint: [ "/scripts/maintenance-worker.sh" ]
     env_file:
       - envs/nextcloud.env
       - envs/db.env
       - envs/redis.env
-      - envs/oidc.env
-      - envs/ai.env
-      - envs/smtp.env
-      - envs/retention.env
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
-      - scripts:/scripts
+      - scripts:/scripts:ro
     networks:
       - nextcloud_internal
     depends_on:
@@ -112,21 +106,17 @@ services:
   nextcloud_ai_worker:
     build:
       context: .
-      pull: true
+    image: nextcloud:35.0.2-apache
     container_name: nextcloud_ai_worker
     entrypoint: [ "/scripts/continuous-worker.sh", "3600" ]
     env_file:
       - envs/nextcloud.env
       - envs/db.env
       - envs/redis.env
-      - envs/oidc.env
-      - envs/ai.env
-      - envs/smtp.env
-      - envs/retention.env
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
-      - scripts:/scripts
+      - scripts:/scripts:ro
     networks:
       - nextcloud_internal
     depends_on:
@@ -147,7 +137,7 @@ services:
       - 'wud.display.icon=si:postgresql'
       - 'wud.tag.include=^18\.\d+$$'
       - "wud.link.template=https://www.postgresql.org/docs/release/$${major}.$${minor}/"
-    shm_size: 256mb
+    shm_size: 512mb
     command: >
       postgres
       -c shared_buffers=512MB
@@ -158,6 +148,9 @@ services:
       -c max_wal_size=4GB
       -c checkpoint_completion_target=0.9
       -c wal_buffers=16MB
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c jit=off
     env_file:
       - envs/db.env
     volumes:
@@ -184,7 +177,7 @@ services:
       - "wud.link.template=https://github.com/redis/redis/releases/tag/$${major}.$${minor}.$${patch}"
     env_file:
       - envs/redis.env
-    command: /bin/sh -c 'exec redis-server --requirepass "$$REDIS_HOST_PASSWORD" --maxmemory 512mb --maxmemory-policy allkeys-lru'
+    command: /bin/sh -c 'exec redis-server --requirepass "$$REDIS_HOST_PASSWORD" --maxmemory 512mb --maxmemory-policy volatile-lru'
     volumes:
       - redis_data:/data
     networks:
@@ -230,11 +223,12 @@ services:
       - 'wud.display.name=Elasticsearch'
       - 'wud.display.icon=si:elasticsearch'
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
-      - "wud.link.template=https://www.elastic.co/guide/en/elasticsearch/reference/current/release-notes-$${major}-$${minor}-$${patch}.html"
+      - "wud.link.template=https://github.com/elastic/elasticsearch/releases/tag/v$${major}.$${minor}.$${patch}"
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
       - xpack.security.enabled=false
+      - xpack.ml.enabled=false
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
@@ -251,7 +245,7 @@ services:
   imaginary:
     image: nextcloud/aio-imaginary:20261021_180331
     container_name: nextcloud_imaginary
-    command: -concurrency 50 -enable-url-source -http-read-timeout 180 -http-write-timeout 180
+    command: -concurrency 50 -http-read-timeout 180 -http-write-timeout 180
     cap_add:
       - SYS_NICE
     labels:
@@ -298,13 +292,16 @@ services:
       --listening-port=3478 --min-port=49152 --max-port=49172
       "$$@"
       --realm="$$COTURN_REALM" --use-auth-secret --static-auth-secret="$$COTURN_SECRET"
-      --fingerprint --stale-nonce=600 --no-multicast-peers --no-tcp-relay'
+      --fingerprint --stale-nonce=600 --no-multicast-peers --no-tcp-relay
+      --denied-peer-ip=10.0.0.0-10.255.255.255
+      --denied-peer-ip=172.16.0.0-172.31.255.255
+      --denied-peer-ip=127.0.0.0-127.255.255.255'
     ports:
       - "3478:3478/tcp"
       - "3478:3478/udp"
       - "49152-49172:49152-49172/udp"
     networks:
-      - nextcloud_internal
+      - coturn_internal
     healthcheck:
       test: [ "CMD-SHELL", "turnutils_stunclient 127.0.0.1 3478 || exit 1" ]
       interval: 30s
@@ -355,8 +352,7 @@ services:
       - envs/appapi.env
     environment:
       - NC_INSTANCE_URL=https://nextcloud.xbhl.online
-      # No external exposure on this network, so trusting all is fine.
-      - HP_TRUSTED_PROXY_IPS=0.0.0.0/0
+      - HP_TRUSTED_PROXY_IPS=127.0.0.1/32,10.0.0.0/8,172.16.0.0/12
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - appapi_harp_certs:/certs
@@ -423,9 +419,11 @@ volumes:
     driver: local
     driver_opts:
       type: "${NEXTCLOUD_STORAGE_DRIVER_TYPE:-nfs}"
-      o: "${NEXTCLOUD_STORAGE_DRIVER_OPTS:-addr=nas.srv.xbhl.intranet,rw,hard,intr,timeo=100}"
+      o: "${NEXTCLOUD_STORAGE_DRIVER_OPTS:-addr=nas.srv.xbhl.intranet,nfsvers=4.1,proto=tcp,rw,hard,noatime,rsize=1048576,wsize=1048576,timeo=150,retrans=3}"
       device: "${NEXTCLOUD_STORAGE_DEVICE:-:/share/NFSv=4/RemoteStorage/NextCloud}"
 
 networks:
   nextcloud_internal:
     name: nextcloud_internal_network
+  coturn_internal:
+    name: nextcloud_coturn_network
