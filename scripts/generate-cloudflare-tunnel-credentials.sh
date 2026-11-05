@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 token_input=""
 output_file=""
@@ -22,12 +22,13 @@ if [ -z "$token_input" ] || [ -z "$output_file" ]; then
     exit 1
 fi
 
-decoded_payload=$(echo "$token_input" | base64 -d)
+decoded_payload=$(printf '%s' "$token_input" | base64 -d)
 
-account_tag=$(echo "$decoded_payload" | jq -r '.a')
-tunnel_id=$(echo "$decoded_payload" | jq -r '.t')
-tunnel_secret=$(echo "$decoded_payload" | jq -r '.s')
+account_tag=$(printf '%s' "$decoded_payload" | jq -er '.a | select(type == "string" and length > 0)')
+tunnel_id=$(printf '%s' "$decoded_payload" | jq -er '.t | select(type == "string" and length > 0)')
+tunnel_secret=$(printf '%s' "$decoded_payload" | jq -er '.s | select(type == "string" and length > 0)')
 
+mkdir -p "$(dirname "$output_file")"
 jq -n \
   --arg at "$account_tag" \
   --arg tid "$tunnel_id" \

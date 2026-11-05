@@ -30,13 +30,14 @@ test:nextcloud:shell-syntax:
   stage: test
   image: alpine:3.24.3
   before_script:
-    - apk add --no-cache bash
+    - apk add --no-cache bash shellcheck
   script:
     - |
       exit_status=0
       for file in $(find scripts src/nextcloud/scripts -name '*.sh'); do
         echo "Checking ${file}"
         bash -n "${file}" || exit_status=1
+        shellcheck -x -S warning "${file}" || exit_status=1
       done
       exit "${exit_status}"
 
@@ -80,8 +81,14 @@ verify:nextcloud:config-reconciliation:
 
 .coturn-init:
   script:
+    - !reference [.base:core:logger, script]
     - |
-      DNS_RECORD_CONTENT=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)
+      DNS_RECORD_CONTENT=$(curl -4 -fsS --max-time 5 https://api.ipify.org || curl -4 -fsS --max-time 5 https://ifconfig.me || curl -4 -fsS --max-time 5 https://icanhazip.com)
+      DNS_RECORD_CONTENT=$(printf '%s' "$DNS_RECORD_CONTENT" | tr -d '[:space:]')
+      if ! printf '%s\n' "$DNS_RECORD_CONTENT" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then
+        log_error "Failed to resolve a valid public IPv4 address for Coturn (got: '$DNS_RECORD_CONTENT')"
+        exit 1
+      fi
       export DNS_RECORD_CONTENT
       log_info "Resolved public router IP for Coturn: $DNS_RECORD_CONTENT"
 
@@ -89,7 +96,7 @@ deploy:nextcloud:update-coturn-dns:
   stage: deploy
   extends: .base:image:alpine
   needs:
-    - "deploy:nextcloud:start-service"
+    - "deploy:nextcloud:deploy-files"
   rules:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
   variables:
@@ -104,3 +111,9 @@ deploy:nextcloud:update-coturn-dns:
     - !reference [.base:dns:cloudflare:record:find, script]
     - !reference [.base:dns:cloudflare:record:create, script]
     - !reference [.base:dns:cloudflare:record:update, script]
+
+deploy:nextcloud:start-service:
+  needs:
+    - "setup:generate-build-artifacts"
+    - "deploy:nextcloud:deploy-files"
+    - "deploy:nextcloud:update-coturn-dns"
