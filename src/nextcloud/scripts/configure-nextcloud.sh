@@ -38,6 +38,10 @@ validate_environment() {
         AI_API_KEY
         AI_API_BASE_URL
         AI_DEFAULT_MODEL
+        AI_EMBEDDING_MODEL
+        AI_STT_MODEL
+        AI_TTS_MODEL
+        AI_IMAGE_MODEL
         SMTP_HOST
         SMTP_PORT
         SMTP_USERNAME

@@ -8,16 +8,23 @@ configure_ai() {
     occ_cmd config:app:set integration_openai api_key --value="$AI_API_KEY"
     occ_cmd config:app:set integration_openai service_name --value="LiteLLM@XBHL.online"
     occ_cmd config:app:set integration_openai default_completion_model_id --value="$AI_DEFAULT_MODEL"
+    occ_cmd config:app:set integration_openai default_stt_model_id --value="$AI_STT_MODEL"
+    occ_cmd config:app:set integration_openai default_speech_model_id --value="$AI_TTS_MODEL"
+    occ_cmd config:app:set integration_openai default_image_model_id --value="$AI_IMAGE_MODEL"
     occ_cmd config:app:set integration_openai llm_provider_enabled --value="1"
     occ_cmd config:app:set integration_openai chat_endpoint_enabled --value="1"
     occ_cmd config:app:set integration_openai translation_provider_enabled --value="1"
-    occ_cmd config:app:set integration_openai free_prompts --value="1"
+    occ_cmd config:app:set integration_openai stt_provider_enabled --value="1"
+    occ_cmd config:app:set integration_openai tts_provider_enabled --value="1"
+    occ_cmd config:app:set integration_openai t2i_provider_enabled --value="1"
+    occ_cmd config:app:set integration_openai multimodal_image_enabled --value="1"
     occ_cmd config:app:set integration_openai max_tokens --value="8192"
-    occ_cmd config:app:set integration_openai context_size --value="32768"
 
     occ_cmd config:app:delete integration_openai api_url >/dev/null 2>&1 || true
     occ_cmd config:app:delete integration_openai name >/dev/null 2>&1 || true
     occ_cmd config:app:delete integration_openai model >/dev/null 2>&1 || true
+    occ_cmd config:app:delete integration_openai free_prompts >/dev/null 2>&1 || true
+    occ_cmd config:app:delete integration_openai context_size >/dev/null 2>&1 || true
 }
 
 # Order matters: AppAPI -> backend -> frontend. Backend/frontend
@@ -46,7 +53,7 @@ configure_context_chat_stack() {
         if ! occ_cmd app_api:app:register context_chat_backend harp_docker \
             --info-xml "https://raw.githubusercontent.com/nextcloud/context_chat_backend/v5.5.0/appinfo/info.xml" \
             --env "CC_EM_BASE_URL=${AI_API_BASE_URL}" \
-            --env "CC_EM_MODEL_NAME=models/gemini-embedding-001" \
+            --env "CC_EM_MODEL_NAME=${AI_EMBEDDING_MODEL}" \
             --env "CC_EM_APIKEY=${AI_API_KEY}" \
             --wait-finish --no-interaction; then
             log_error "Failed to register context_chat_backend"
