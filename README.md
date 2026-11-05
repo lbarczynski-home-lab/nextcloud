@@ -21,7 +21,7 @@ Self-hosted enterprise private cloud storage and collaborative office suite powe
 - **Dedicated Background Workers**:
   - `cron`: System cron runner for background tasks.
   - `ai_worker`: Dedicated task processor for near-instant AI assistant responses.
-  - `maintenance_worker`: Automated scheduled preview generation, search indexing, application autoupdates, and database optimization.
+  - `maintenance_worker`: Automated scheduled preview generation, search indexing, application autoupdates, and database schema maintenance.
 
 ---
 
@@ -47,7 +47,7 @@ docker exec -it nextcloud /scripts/maintenance-worker.sh --now
 
 The maintenance worker uses a lock file (shared across the `nextcloud`,
 `nextcloud_maintenance_worker`, and `nextcloud_ai_worker` containers via the
-bind-mounted `scripts/` directory) to avoid two maintenance runs stepping on
+`/var/www/html/config` volume) to avoid two maintenance runs stepping on
 each other. If a run is already in progress, `--now` skips instead of
 running concurrently. To wait for it to finish instead of skipping
 immediately (up to 5 minutes, then gives up):
