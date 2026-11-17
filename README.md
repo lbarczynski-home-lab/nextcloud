@@ -24,8 +24,9 @@ flowchart LR
     NCFD -->|"/exapps/* :8780"| Harp["AppAPI HaRP"]
     Harp -->|"FRP :8782"| ExApps["Context Chat & Context Agent ExApps"]
     NCFD -->|"Catch-all :80"| NC["Nextcloud Apache + Notify Push"]
-    NC <-->|"WOPI HTTPS"| Collab["Collabora Online (office.xbhl.online)"]
+    NC <-->|"wopi_internal_network :9980"| Collab["Collabora Online (office.xbhl.online)"]
     Workers["Cron / AI / Maintenance Workers"] --> Core["PostgreSQL 18 + Redis"]
+    Workers -->|"wopi_internal_network :9980"| Collab
     NC --> Core
     NC --> Sidecars["ClamAV + Elasticsearch + Imaginary"]
     NC -->|"NFSv4.1"| NAS["QNAP NAS (nas.srv.xbhl.intranet)"]
@@ -35,7 +36,7 @@ flowchart LR
 ```
 
 - **Cloudflare Tunnel & Dynamic Coturn DNS**: `nextcloud_cloudflared` publishes `nextcloud.xbhl.online` (`^/exapps/` to `appapi-harp:8780`; catch-all to Apache `:80`, which proxies `/push` to `notify_push`). Because Cloudflare Tunnels cannot carry WebRTC media, CI job `deploy:nextcloud:update-coturn-dns` updates unproxied `A` record `talk.nextcloud.xbhl.online` with the router's public IPv4 before startup so Coturn discovers `--external-ip` via DNS.
-- **Standalone Collabora Online Integration**: Startup and post-deploy `configure-nextcloud.sh` runs idempotently reconcile `richdocuments` against the standalone Collabora Online deployment at `https://office.xbhl.online` alongside Authelia OIDC (`user_oidc`, auto-promoting the primary user to `admin`), Imaginary, Memories, Recognize, Elasticsearch, and ClamAV upload scanning, while storing user files on QNAP NFSv4.1 (`nas.srv.xbhl.intranet`) and keeping transactional databases/indices on local host storage.
+- **Standalone Collabora Online Integration**: Startup and post-deploy `configure-nextcloud.sh` runs idempotently reconcile `richdocuments` with `wopi_url=http://collabora:9980` over shared `wopi_internal_network` (for server-to-server discovery, capabilities, and `/cool/convert-to` previews/thumbnails across `nextcloud` and worker containers) and `public_wopi_url=https://office.xbhl.online` (for browser editor sessions), alongside Authelia OIDC (`user_oidc`, auto-promoting the primary user to `admin`), Imaginary, Memories, Recognize, Elasticsearch, and ClamAV upload scanning, while storing user files on QNAP NFSv4.1 (`nas.srv.xbhl.intranet`) and keeping transactional databases/indices on local host storage.
 - **LiteLLM Assistant & AppAPI HaRP ExApps**: Nextcloud Assistant (`integration_openai`) delegates chat, embeddings, STT, TTS, and image generation to `llm.ai.intranet.xbhl.online`, while `appapi-harp` runs sibling Docker ExApps `context_chat_backend` (RAG using remote LiteLLM embeddings without a local GPU) and `context_agent` (tool-calling Assistant actions).
 - **Dedicated Cron, AI & Maintenance Worker Split**: Four containers share the custom Nextcloud image (`ffmpeg`, `ghostscript`, `imagemagick`, `exiftool`): `nextcloud` serves HTTP and `run-init.sh` reconciliation, `nextcloud_cron` runs `cron.php`, `nextcloud_ai_worker` runs continuous `occ taskprocessing:worker` loops for low-latency Assistant tasks, and `nextcloud_maintenance_worker` runs tiered 5-minute, hourly, and daily media/index/repair jobs.
 
@@ -54,10 +55,11 @@ docker exec -it nextcloud /scripts/maintenance-worker.sh --now [--force]
 
 - **Cloudflare Tunnel**: `NEXTCLOUD_CLOUDFLARE_TUNNEL_UUID` / `NEXTCLOUD_CLOUDFLARE_TUNNEL_TOKEN` (Cloudflare Zero Trust tunnel for `nextcloud.xbhl.online`).
 - **LiteLLM Proxy Key**: `AI_API_KEY` (virtual key issued on `llm.ai.intranet.xbhl.online` for Nextcloud Assistant and `context_chat_backend` embeddings).
+- **Giphy API Key**: `GIPHY_API_KEY` (Giphy Developer API key for Nextcloud Talk GIF search via `integration_giphy`).
 
 ## Upgrades & Maintenance
 
 - **Upstream & Wrapper Sources**: Check [Nextcloud Server release notes](https://docs.nextcloud.com/server/latest/admin_manual/release_notes/index.html), [`nextcloud/docker`](https://github.com/nextcloud/docker), [`aio-imaginary`](https://github.com/nextcloud/all-in-one/tree/main/Containers/imaginary), [`clamav-docker`](https://github.com/Cisco-Talos/clamav-docker), and HaRP ExApps [`context_chat_backend`](https://github.com/nextcloud/context_chat_backend) / [`context_agent`](https://github.com/nextcloud/context_agent).
 - **Version & Flavor Constraints**: Never skip Nextcloud major versions; keep `nextcloud` on `-apache`, `postgres_db` on PostgreSQL 18, `clamav` on `_base` (runtime `freshclam`), `coturn` on `-alpine`, and `context_chat_backend` `--info-xml` in `scripts/configure/ai.sh` aligned with `context_chat` `major.minor`.
 - **Intentional Choices (Do Not Propose)**: Authelia OIDC-only auth with built-in 2FA/LDAP/encryption disabled; `opcache.revalidate_freq=60` in `config/custom.ini` so daily `occ app:update --all` reloads cleanly; external LiteLLM proxy without local GPU models; Docker socket access on `appapi-harp` for sibling ExApps; single-node Elasticsearch without `xpack.security` on the isolated bridge; `coturn` `entrypoint: []` bypass with `--no-tcp-relay`; non-recursive top-level `chown` on NFS storage.
-- **Upgrade & CI Gotchas**: Bump `nextcloud` across `src/Dockerfile` and all 4 worker services in `src/docker-compose.yml` (CI `alpine` image in `.gitlab-ci.yml` is untracked by WUD); bumping `context_chat_backend` requires `occ app_api:app:*` reconciliation since `ai.sh` skips already-registered ExApps.
+- **Upgrade & CI Gotchas**: Bump `nextcloud` across `src/Dockerfile` and all 4 worker services in `src/docker-compose.yml`; bumping `context_chat_backend` requires `occ app_api:app:*` reconciliation since `ai.sh` skips already-registered ExApps.

@@ -1,0 +1,3 @@
+.build-artifacts/
+.nextcloud_generated_sources/
+deployment-test-dir/

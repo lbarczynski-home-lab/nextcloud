@@ -1,10 +1,10 @@
 #!/bin/sh
 set -e
 
-STATUS_URL="http://localhost:80/status.php"
+STATUS_URL="http://127.0.0.1:80/status.php"
 DATA_DIR="${NEXTCLOUD_DATA_DIR:-/var/nc-data}"
 
-STATUS_OUTPUT=$(curl -sf "$STATUS_URL" 2>/dev/null) || {
+STATUS_OUTPUT=$(curl -sf -H "Host: localhost" "$STATUS_URL" 2>/dev/null) || {
     echo "Healthcheck failed: Unable to connect to Nextcloud status endpoint ($STATUS_URL)"
     exit 1
 }

@@ -30,12 +30,13 @@ services:
       - scripts:/scripts:ro
     networks:
       - nextcloud_internal
+      - wopi_internal
     healthcheck:
       test: [ "CMD-SHELL", "/scripts/healthcheck.sh" ]
-      interval: 30s
+      interval: 10s
       start_interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 270s
     depends_on:
       postgres_db:
@@ -64,11 +65,18 @@ services:
       - envs/nextcloud.env
       - envs/db.env
       - envs/redis.env
+    labels:
+      - 'wud.watch=true'
+      - 'wud.display.name=Nextcloud Cron'
+      - 'wud.display.icon=si:nextcloud'
+      - 'wud.tag.include=^\d+\.\d+\.\d+-apache$$'
+      - "wud.link.template=https://github.com/nextcloud/server/releases/tag/v$${major}.$${minor}.$${patch}"
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
     networks:
       - nextcloud_internal
+      - wopi_internal
     depends_on:
       nextcloud:
         condition: service_healthy
@@ -88,12 +96,19 @@ services:
       - envs/nextcloud.env
       - envs/db.env
       - envs/redis.env
+    labels:
+      - 'wud.watch=true'
+      - 'wud.display.name=Nextcloud Maintenance Worker'
+      - 'wud.display.icon=si:nextcloud'
+      - 'wud.tag.include=^\d+\.\d+\.\d+-apache$$'
+      - "wud.link.template=https://github.com/nextcloud/server/releases/tag/v$${major}.$${minor}.$${patch}"
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
       - scripts:/scripts:ro
     networks:
       - nextcloud_internal
+      - wopi_internal
     depends_on:
       nextcloud:
         condition: service_healthy
@@ -113,12 +128,19 @@ services:
       - envs/nextcloud.env
       - envs/db.env
       - envs/redis.env
+    labels:
+      - 'wud.watch=true'
+      - 'wud.display.name=Nextcloud AI Worker'
+      - 'wud.display.icon=si:nextcloud'
+      - 'wud.tag.include=^\d+\.\d+\.\d+-apache$$'
+      - "wud.link.template=https://github.com/nextcloud/server/releases/tag/v$${major}.$${minor}.$${patch}"
     volumes:
       - nextcloud_data:/var/nc-data:nocopy
       - nextcloud_html:/var/www/html
       - scripts:/scripts:ro
     networks:
       - nextcloud_internal
+      - wopi_internal
     depends_on:
       nextcloud:
         condition: service_healthy
@@ -159,10 +181,10 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} || exit 1" ]
-      interval: 30s
+      interval: 10s
       start_interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 30s
     restart: unless-stopped
 
@@ -173,7 +195,7 @@ services:
       - 'wud.watch=true'
       - 'wud.display.name=Redis'
       - 'wud.display.icon=si:redis'
-      - 'wud.tag.include=^\d+\.\d+\.\d+$$'
+      - 'wud.tag.include=^8\.\d+\.\d+$$'
       - "wud.link.template=https://github.com/redis/redis/releases/tag/$${major}.$${minor}.$${patch}"
     env_file:
       - envs/redis.env
@@ -184,11 +206,11 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_HOST_PASSWORD\" ping | grep PONG || exit 1" ]
-      interval: 30s
+      interval: 10s
       start_interval: 5s
       timeout: 5s
-      retries: 3
-      start_period: 15s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   clamav:
@@ -208,10 +230,10 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "nc -z 127.0.0.1 3310 || exit 1" ]
-      interval: 30s
+      interval: 10s
       start_interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 150s
     restart: unless-stopped
 
@@ -222,7 +244,7 @@ services:
       - 'wud.watch=true'
       - 'wud.display.name=Elasticsearch'
       - 'wud.display.icon=si:elasticsearch'
-      - 'wud.tag.include=^\d+\.\d+\.\d+$$'
+      - 'wud.tag.include=^9\.\d+\.\d+$$'
       - "wud.link.template=https://github.com/elastic/elasticsearch/releases/tag/v$${major}.$${minor}.$${patch}"
     environment:
       - discovery.type=single-node
@@ -234,11 +256,11 @@ services:
     networks:
       - nextcloud_internal
     healthcheck:
-      test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status' || exit 1" ]
-      interval: 30s
+      test: [ "CMD-SHELL", "curl -s http://127.0.0.1:9200/_cluster/health | grep -q 'status' || exit 1" ]
+      interval: 10s
       start_interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 90s
     restart: unless-stopped
 
@@ -258,11 +280,11 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "/healthcheck.sh" ]
-      interval: 30s
+      interval: 10s
       start_interval: 5s
       timeout: 5s
-      retries: 3
-      start_period: 15s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   coturn:
@@ -304,11 +326,11 @@ services:
       - coturn_internal
     healthcheck:
       test: [ "CMD-SHELL", "turnutils_stunclient 127.0.0.1 3478 || exit 1" ]
-      interval: 30s
+      interval: 10s
       start_interval: 5s
       timeout: 5s
-      retries: 3
-      start_period: 15s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   notify_push:
@@ -360,10 +382,10 @@ services:
       - nextcloud_internal
     healthcheck:
       test: [ "CMD-SHELL", "nc -z 127.0.0.1 8780 || exit 1" ]
-      interval: 30s
+      interval: 10s
       start_interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 30s
     restart: unless-stopped
 
@@ -427,3 +449,6 @@ networks:
     name: nextcloud_internal_network
   coturn_internal:
     name: nextcloud_coturn_network
+  wopi_internal:
+    name: wopi_internal_network
+    external: true

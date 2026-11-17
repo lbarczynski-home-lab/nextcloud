@@ -2,13 +2,14 @@
 # External service integrations: Collabora Office, ClamAV, Elasticsearch, and Talk/Coturn.
 
 configure_office() {
-    log_info "Configuring Nextcloud Office (Collabora Online at https://office.xbhl.online)..."
+    log_info "Configuring Nextcloud Office (Collabora Online internal http://collabora:9980, public https://office.xbhl.online)..."
 
     occ_cmd app:enable richdocuments --no-interaction 2>/dev/null || true
-    occ_cmd config:app:set richdocuments wopi_url --value="https://office.xbhl.online"
+    occ_cmd config:app:set richdocuments wopi_url --value="http://collabora:9980"
     occ_cmd config:app:set richdocuments public_wopi_url --value="https://office.xbhl.online"
     occ_cmd config:app:set richdocuments doc_format --value="ooxml"
     occ_cmd richdocuments:activate-config --no-interaction 2>/dev/null || true
+    occ_cmd config:app:set richdocuments public_wopi_url --value="https://office.xbhl.online"
 }
 
 configure_antivirus() {
