@@ -288,7 +288,7 @@ services:
     restart: unless-stopped
 
   coturn:
-    image: coturn/coturn:4.18.0-alpine
+    image: coturn/coturn:4.19.1-alpine
     container_name: nextcloud_coturn
     labels:
       - 'wud.watch=true'
