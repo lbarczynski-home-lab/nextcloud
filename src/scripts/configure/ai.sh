@@ -48,11 +48,21 @@ configure_context_chat_stack() {
         fi
     fi
 
+    local backend_version="5.6.0"
+    local backend_info_xml="https://raw.githubusercontent.com/nextcloud/context_chat_backend/v${backend_version}/appinfo/info.xml"
     local backend_registered=0
-    if ! occ_cmd app_api:app:list 2>/dev/null | grep -q "context_chat_backend"; then
-        log_info " - Registering context_chat_backend (v5.5.0, matching context_chat)..."
+    local exapp_list
+    if ! exapp_list=$(occ_cmd app_api:app:list 2>/dev/null); then
+        log_error "Failed to list registered AppAPI ExApps"
+        return 1
+    fi
+
+    local backend_entry
+    backend_entry=$(grep -E '^context_chat_backend([[:space:]]|:|$)' <<<"$exapp_list" || true)
+    if [ -z "$backend_entry" ]; then
+        log_info " - Registering context_chat_backend (v${backend_version}, matching context_chat)..."
         if ! occ_cmd app_api:app:register context_chat_backend harp_docker \
-            --info-xml "https://raw.githubusercontent.com/nextcloud/context_chat_backend/v5.5.0/appinfo/info.xml" \
+            --info-xml "$backend_info_xml" \
             --env "CC_EM_BASE_URL=${AI_API_BASE_URL}" \
             --env "CC_EM_MODEL_NAME=${AI_EMBEDDING_MODEL}" \
             --env "CC_EM_APIKEY=${AI_API_KEY}" \
@@ -61,6 +71,14 @@ configure_context_chat_stack() {
             return 1
         fi
         backend_registered=1
+    elif ! grep -Fq ": ${backend_version} [" <<<"$backend_entry"; then
+        log_info " - Updating context_chat_backend to v${backend_version} (matching context_chat)..."
+        if ! occ_cmd app_api:app:update context_chat_backend \
+            --info-xml "$backend_info_xml" \
+            --wait-finish --no-interaction; then
+            log_error "Failed to update context_chat_backend"
+            return 1
+        fi
     fi
 
     if ! is_app_present context_chat; then

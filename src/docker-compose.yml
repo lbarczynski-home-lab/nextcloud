@@ -361,7 +361,7 @@ services:
     restart: unless-stopped
 
   appapi-harp:
-    image: ghcr.io/nextcloud/nextcloud-appapi-harp:v0.4.7
+    image: ghcr.io/nextcloud/nextcloud-appapi-harp:v0.4.8
     container_name: appapi-harp
     hostname: appapi-harp
     labels:
