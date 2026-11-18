@@ -5,7 +5,7 @@ services:
       # The local image reuses the upstream tag (for WUD), so without an
       # explicit pull FROM would resolve to our own previous build.
       pull: true
-    image: nextcloud:35.0.2-apache
+    image: nextcloud:35.0.3-apache
     container_name: nextcloud
     env_file:
       - envs/nextcloud.env
@@ -58,7 +58,7 @@ services:
   nextcloud_cron:
     build:
       context: .
-    image: nextcloud:35.0.2-apache
+    image: nextcloud:35.0.3-apache
     container_name: nextcloud_cron
     entrypoint: [ "/cron.sh" ]
     env_file:
@@ -89,7 +89,7 @@ services:
   nextcloud_maintenance_worker:
     build:
       context: .
-    image: nextcloud:35.0.2-apache
+    image: nextcloud:35.0.3-apache
     container_name: nextcloud_maintenance_worker
     entrypoint: [ "/scripts/maintenance-worker.sh" ]
     env_file:
@@ -121,7 +121,7 @@ services:
   nextcloud_ai_worker:
     build:
       context: .
-    image: nextcloud:35.0.2-apache
+    image: nextcloud:35.0.3-apache
     container_name: nextcloud_ai_worker
     entrypoint: [ "/scripts/continuous-worker.sh", "3600" ]
     env_file:
