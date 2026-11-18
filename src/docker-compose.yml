@@ -265,7 +265,7 @@ services:
     restart: unless-stopped
 
   imaginary:
-    image: nextcloud/aio-imaginary:20261021_180331
+    image: nextcloud/aio-imaginary:20261109_101109
     container_name: nextcloud_imaginary
     command: -concurrency 50 -http-read-timeout 180 -http-write-timeout 180
     cap_add:
