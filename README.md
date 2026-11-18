@@ -1,6 +1,6 @@
 # Nextcloud
 
-> Version: `35.0.3-apache` | Images: `nextcloud:35.0.3-apache`, `postgres:18.7`, `redis:8.10.3`, `clamav/clamav:1.5.4_base`, `docker.elastic.co/elasticsearch/elasticsearch:9.5.6`, `nextcloud/aio-imaginary:20261109_101109`, `coturn/coturn:4.19.1-alpine`, `ghcr.io/nextcloud/notify_push:v1.4.2`, `ghcr.io/nextcloud/nextcloud-appapi-harp:v0.4.8`, `cloudflare/cloudflared:2026.11.0` | Upstream: https://github.com/nextcloud/server
+> Version: `35.0.3-apache` | Images: `nextcloud:35.0.3-apache`, `postgres:18.7`, `redis:8.10.3`, `clamav/clamav:1.5.4_base`, `docker.elastic.co/elasticsearch/elasticsearch:9.5.6`, `nextcloud/aio-imaginary:20261109_101109`, `coturn/coturn:4.19.1-alpine`, `ghcr.io/nextcloud/notify_push:v1.4.2`, `ghcr.io/nextcloud/nextcloud-appapi-harp:v0.4.8`, `cloudflare/cloudflared:2026.11.1` | Upstream: https://github.com/nextcloud/server
 
 Self-hosted private cloud storage, WebRTC audio/video communication (Talk + Coturn), full-text search, antivirus scanning, AppAPI/LiteLLM-backed AI assistant, and WOPI integration with standalone Collabora Online (`https://office.xbhl.online`).
 
