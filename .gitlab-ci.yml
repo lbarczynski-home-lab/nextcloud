@@ -27,10 +27,7 @@ test:nextcloud:docker-compose:
   before_script:
     - 'docker run --rm -v /tmp:/mnt alpine rm -rf /mnt/nextcloud-test-data'
     - 'docker run --rm -v /tmp/nextcloud-test-data:/tmp/nextcloud-test-data alpine true'
-  variables:
-    NEXTCLOUD_STORAGE_DRIVER_TYPE: "none"
-    NEXTCLOUD_STORAGE_DRIVER_OPTS: "bind"
-    NEXTCLOUD_STORAGE_DEVICE: "/tmp/nextcloud-test-data"
+    - 'sed -i "s|type: nfs|type: none|; s|o: addr=.*|o: bind|; s|device: :/RemoteStorage/NextCloud|device: /tmp/nextcloud-test-data|" src/docker-compose.yml'
 
 test:nextcloud:shell-syntax:
   stage: test

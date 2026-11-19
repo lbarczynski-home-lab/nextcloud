@@ -440,9 +440,9 @@ volumes:
   nextcloud_data:
     driver: local
     driver_opts:
-      type: "${NEXTCLOUD_STORAGE_DRIVER_TYPE:-nfs}"
-      o: "${NEXTCLOUD_STORAGE_DRIVER_OPTS:-addr=nas.srv.xbhl.intranet,nfsvers=4.1,proto=tcp,rw,hard,noatime,rsize=1048576,wsize=1048576,timeo=150,retrans=3}"
-      device: "${NEXTCLOUD_STORAGE_DEVICE:-:/share/NFSv=4/RemoteStorage/NextCloud}"
+      type: nfs
+      o: addr=nas.srv.xbhl.intranet,nfsvers=4.1,proto=tcp,rw,hard,noatime,rsize=1048576,wsize=1048576,timeo=150,retrans=3
+      device: :/RemoteStorage/NextCloud
 
 networks:
   nextcloud_internal:
